@@ -40,8 +40,10 @@ RE_FILING = re.compile(r'id="txt_file_dt">(.*?)</span>')
 RE_DISPOSAL = re.compile(r'id="lbl_disposal_dt">(.*?)</span>')
 RE_ACT = re.compile(r'id="txt_act_sect_detail">(.*?)</span>')
 RE_GENORDERS = re.compile(r'href="([^"]*BOR/Generate_Orders\.aspx[^"]+)"', re.IGNORECASE)
-RE_ORDERENTRY = re.compile(r'(\d{2}/\d{2}/\d{4})\b.*?order_id=(\d+)', re.DOTALL)
-RE_SINGLE_ORDER = re.compile(r'order_id=(\d+)')
+RE_ORDERENTRY = re.compile(r'(\d{2}/\d{2}/\d{4})\b.*?login_type=(\w+).*?order_id=(\d+)', re.DOTALL)
+RE_ORDERENTRY_NOLT = re.compile(r'(\d{2}/\d{2}/\d{4})\b.*?order_id=(\d+)', re.DOTALL)
+RE_SINGLE_ORDER = re.compile(r'login_type=(\w+)&order_id=(\d+)')
+RE_SINGLE_ORDER_NOLT = re.compile(r'order_id=(\d+)')
 
 
 def safe_encode_url(url_str):
@@ -155,28 +157,62 @@ def live_search_vaad_case(case_auto_no):
         gen_url = safe_encode_url(gen_raw_url)
         try:
             gen_html = opener.open(urllib.request.Request(gen_url, headers=HEADERS), timeout=4).read().decode('utf-8', errors='ignore')
+            # Try regex with login_type first
             order_entries = RE_ORDERENTRY.findall(gen_html)
-            for idx, (date_str, oid) in enumerate(order_entries):
-                is_latest = (idx == len(order_entries) - 1)
-                orders_list.append({
-                    "order_no": idx + 1,
-                    "order_date": date_str,
-                    "order_id": oid,
-                    "is_latest": is_latest,
-                    "title": f"आदेश {idx + 1} (तिथि: {date_str})" + (" - अंतिम आदेश" if is_latest else "")
-                })
+            if order_entries:
+                for idx, (date_str, lt, oid) in enumerate(order_entries):
+                    is_latest = (idx == len(order_entries) - 1)
+                    orders_list.append({
+                        "order_no": idx + 1,
+                        "order_date": date_str,
+                        "order_id": oid,
+                        "login_type": lt,
+                        "is_latest": is_latest,
+                        "title": f"आदेश {idx + 1} (तिथि: {date_str})" + (" - अंतिम आदेश" if is_latest else "")
+                    })
+            else:
+                # Fallback: extract without login_type
+                order_entries_nolt = RE_ORDERENTRY_NOLT.findall(gen_html)
+                # Try to get ltype from gen_url
+                ltype_m = re.search(r'ltype=([^&]+)', gen_url)
+                default_lt = ltype_m.group(1) if ltype_m else "T"
+                for idx, (date_str, oid) in enumerate(order_entries_nolt):
+                    is_latest = (idx == len(order_entries_nolt) - 1)
+                    orders_list.append({
+                        "order_no": idx + 1,
+                        "order_date": date_str,
+                        "order_id": oid,
+                        "login_type": default_lt,
+                        "is_latest": is_latest,
+                        "title": f"आदेश {idx + 1} (तिथि: {date_str})" + (" - अंतिम आदेश" if is_latest else "")
+                    })
         except Exception as e:
             print("Generate orders error:", e)
 
     if not orders_list:
         all_oids = RE_SINGLE_ORDER.findall(detail_html)
         if all_oids:
-            for idx, oid in enumerate(all_oids):
+            for idx, (lt, oid) in enumerate(all_oids):
                 is_latest = (idx == len(all_oids) - 1)
                 orders_list.append({
                     "order_no": idx + 1,
                     "order_date": disposal_dt or "अंतिम आदेश",
                     "order_id": oid,
+                    "login_type": lt,
+                    "is_latest": is_latest,
+                    "title": f"आदेश {idx + 1} (तिथि: {disposal_dt or 'अंतिम आदेश'})" + (" - अंतिम आदेश" if is_latest else "")
+                })
+        else:
+            all_oids_nolt = RE_SINGLE_ORDER_NOLT.findall(detail_html)
+            ltype_m = re.search(r'ltype=([^&]+)', detail_url)
+            default_lt = ltype_m.group(1) if ltype_m else "T"
+            for idx, oid in enumerate(all_oids_nolt):
+                is_latest = (idx == len(all_oids_nolt) - 1)
+                orders_list.append({
+                    "order_no": idx + 1,
+                    "order_date": disposal_dt or "अंतिम आदेश",
+                    "order_id": oid,
+                    "login_type": default_lt,
                     "is_latest": is_latest,
                     "title": f"आदेश {idx + 1} (तिथि: {disposal_dt or 'अंतिम आदेश'})" + (" - अंतिम आदेश" if is_latest else "")
                 })
@@ -234,10 +270,11 @@ class handler(BaseHTTPRequestHandler):
 
         if path.startswith("/api/fetch-order"):
             order_id = query.get("order_id", [""])[0]
+            login_type = query.get("login_type", [""])[0] or ""
             remove_qr = query.get("remove_qr", ["true"])[0].lower() == "true"
             remove_disclaimer = query.get("remove_disclaimer", ["true"])[0].lower() == "true"
 
-            cache_key = f"{order_id}_{remove_qr}_{remove_disclaimer}"
+            cache_key = f"{order_id}_{login_type}_{remove_qr}_{remove_disclaimer}"
             now = time.time()
             if cache_key in ORDER_CACHE:
                 cached_time, cached_html = ORDER_CACHE[cache_key]
@@ -249,13 +286,25 @@ class handler(BaseHTTPRequestHandler):
                     self.wfile.write(cached_html.encode("utf-8"))
                     return
 
-            try:
-                target_url = f"https://vaad.up.nic.in/judgement/Print_Court_Order_External.aspx?login_type=T&order_id={order_id}"
-                req = urllib.request.Request(target_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
-                with urllib.request.urlopen(req, context=ssl_ctx, timeout=6) as resp:
-                    raw_html = resp.read().decode('utf-8', errors='ignore')
-            except Exception as ex:
-                raw_html = f"<h2>आदेश प्राप्त करने में समस्या: {str(ex)}</h2>"
+            raw_html = ""
+            # Try login_types: use provided one first, then try the other as fallback
+            types_to_try = [login_type] if login_type else ["T", "NT"]
+            if login_type == "T":
+                types_to_try = ["T", "NT"]
+            elif login_type == "NT":
+                types_to_try = ["NT", "T"]
+
+            for lt in types_to_try:
+                try:
+                    target_url = f"https://vaad.up.nic.in/judgement/Print_Court_Order_External.aspx?login_type={lt}&order_id={order_id}"
+                    req = urllib.request.Request(target_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+                    with urllib.request.urlopen(req, context=ssl_ctx, timeout=6) as resp:
+                        raw_html = resp.read().decode('utf-8', errors='ignore')
+                    # Check if it's the upload error page
+                    if 'अपलोड नहीं किया गया' not in raw_html and 'अपलोड करें' not in raw_html:
+                        break  # Found the correct login_type!
+                except Exception as ex:
+                    raw_html = f"<h2>आदेश प्राप्त करने में समस्या: {str(ex)}</h2>"
 
             final_html = clean_order_document(raw_html, remove_qr=remove_qr, remove_disclaimer=remove_disclaimer)
             ORDER_CACHE[cache_key] = (now, final_html)
