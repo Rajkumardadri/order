@@ -124,8 +124,8 @@ def live_search_vaad_case(case_auto_no):
         gen_url = safe_encode_url(gen_raw_url)
         try:
             gen_html = opener.open(urllib.request.Request(gen_url, headers=HEADERS), timeout=10).read().decode('utf-8', errors='ignore')
-            order_entries = re.findall(r'(\(\d+\))\s*</td>\s*<td[^>]*>\s*<strong>آदेश तिथि:- &nbsp;&nbsp;&nbsp;</strong>([\d/]+).*?order_id=(\d+)', gen_html, re.DOTALL)
-            for idx, (no_str, date_str, oid) in enumerate(order_entries):
+            order_entries = re.findall(r'(\d{2}/\d{2}/\d{4})\b.*?order_id=(\d+)', gen_html, re.DOTALL)
+            for idx, (date_str, oid) in enumerate(order_entries):
                 is_latest = (idx == len(order_entries) - 1)
                 orders_list.append({
                     "order_no": idx + 1,
@@ -203,7 +203,7 @@ class handler(BaseHTTPRequestHandler):
 
             try:
                 target_url = f"https://vaad.up.nic.in/judgement/Print_Court_Order_External.aspx?login_type=T&order_id={order_id}"
-                req = urllib.request.Request(target_url, headers={'User-Agent': 'Mozilla/5.0'})
+                req = urllib.request.Request(target_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
                 with urllib.request.urlopen(req, context=ssl_ctx, timeout=10) as resp:
                     raw_html = resp.read().decode('utf-8', errors='ignore')
             except Exception as ex:
