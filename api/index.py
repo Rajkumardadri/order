@@ -5,6 +5,13 @@ import json
 import re
 import ssl
 import http.cookiejar
+import time
+
+# In-Memory High Speed Caching
+CASE_CACHE = {}      # case_auto_no -> (timestamp, data)
+ORDER_CACHE = {}     # cache_key -> (timestamp, html_str)
+CACHE_TTL = 600      # 10 minutes cache for case details
+ORDER_TTL = 900      # 15 minutes cache for clean order documents
 
 cookie_jar = http.cookiejar.CookieJar()
 ssl_ctx = ssl._create_unverified_context()
@@ -14,18 +21,35 @@ opener = urllib.request.build_opener(
 )
 
 HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
     'Accept-Language': 'hi,en-US;q=0.9,en;q=0.8',
+    'Connection': 'keep-alive',
     'Origin': 'https://vaad.up.nic.in',
     'Referer': 'https://vaad.up.nic.in/Search_CaseAutoNo.aspx'
 }
+
+# Pre-compiled Regexes for maximum speed
+RE_VIEWSTATE = re.compile(r'id="__VIEWSTATE"\s+value="([^"]*)"')
+RE_EVENTVAL = re.compile(r'id="__EVENTVALIDATION"\s+value="([^"]*)"')
+RE_VSGEN = re.compile(r'id="__VIEWSTATEGENERATOR"\s+value="([^"]*)"')
+RE_CASEDETAIL = re.compile(r'href="([^"]*case_all_detail\.aspx[^"]+)"', re.IGNORECASE)
+RE_PARTY = re.compile(r'id="txt_lbl_party">(.*?)</span>.*?id="txt_lbl_detail">(.*?)</span>', re.DOTALL)
+RE_STATUS = re.compile(r'id="lbl_status">(.*?)</span>')
+RE_FILING = re.compile(r'id="txt_file_dt">(.*?)</span>')
+RE_DISPOSAL = re.compile(r'id="lbl_disposal_dt">(.*?)</span>')
+RE_ACT = re.compile(r'id="txt_act_sect_detail">(.*?)</span>')
+RE_GENORDERS = re.compile(r'href="([^"]*BOR/Generate_Orders\.aspx[^"]+)"', re.IGNORECASE)
+RE_ORDERENTRY = re.compile(r'(\d{2}/\d{2}/\d{4})\b.*?order_id=(\d+)', re.DOTALL)
+RE_SINGLE_ORDER = re.compile(r'order_id=(\d+)')
+
 
 def safe_encode_url(url_str):
     parsed = urllib.parse.urlsplit(url_str)
     encoded_query = urllib.parse.quote(parsed.query, safe='=&%')
     encoded_path = urllib.parse.quote(parsed.path, safe='/')
     return urllib.parse.urlunsplit((parsed.scheme, parsed.netloc, encoded_path, encoded_query, parsed.fragment))
+
 
 def clean_order_document(html_str, remove_qr=True, remove_disclaimer=True):
     cleaned = html_str.replace('src="BarCode_Print.aspx', 'src="https://vaad.up.nic.in/judgement/BarCode_Print.aspx')
@@ -61,13 +85,20 @@ def clean_order_document(html_str, remove_qr=True, remove_disclaimer=True):
     """
     return css_injection + cleaned
 
-def live_search_vaad_case(case_auto_no):
-    get_req = urllib.request.Request('https://vaad.up.nic.in/Search_CaseAutoNo.aspx', headers=HEADERS)
-    html_get = opener.open(get_req, timeout=10).read().decode('utf-8', errors='ignore')
 
-    vs_m = re.search(r'id="__VIEWSTATE"\s+value="([^"]*)"', html_get)
-    ev_m = re.search(r'id="__EVENTVALIDATION"\s+value="([^"]*)"', html_get)
-    vsg_m = re.search(r'id="__VIEWSTATEGENERATOR"\s+value="([^"]*)"', html_get)
+def live_search_vaad_case(case_auto_no):
+    now = time.time()
+    if case_auto_no in CASE_CACHE:
+        cached_time, cached_data = CASE_CACHE[case_auto_no]
+        if now - cached_time < CACHE_TTL:
+            return cached_data
+
+    get_req = urllib.request.Request('https://vaad.up.nic.in/Search_CaseAutoNo.aspx', headers=HEADERS)
+    html_get = opener.open(get_req, timeout=5).read().decode('utf-8', errors='ignore')
+
+    vs_m = RE_VIEWSTATE.search(html_get)
+    ev_m = RE_EVENTVAL.search(html_get)
+    vsg_m = RE_VSGEN.search(html_get)
 
     vs = vs_m.group(1) if vs_m else ""
     ev = ev_m.group(1) if ev_m else ""
@@ -84,9 +115,9 @@ def live_search_vaad_case(case_auto_no):
     }
     encoded_payload = urllib.parse.urlencode(payload).encode('utf-8')
     post_req = urllib.request.Request('https://vaad.up.nic.in/Search_CaseAutoNo.aspx', data=encoded_payload, headers=HEADERS)
-    html_post = opener.open(post_req, timeout=10).read().decode('utf-8', errors='ignore')
+    html_post = opener.open(post_req, timeout=5).read().decode('utf-8', errors='ignore')
 
-    casedetail_links = re.findall(r'href="([^"]*case_all_detail\.aspx[^"]+)"', html_post, re.IGNORECASE)
+    casedetail_links = RE_CASEDETAIL.findall(html_post)
     if not casedetail_links:
         return None
 
@@ -94,21 +125,21 @@ def live_search_vaad_case(case_auto_no):
     detail_raw_url = "https://vaad.up.nic.in/" + raw_link
     detail_url = safe_encode_url(detail_raw_url)
 
-    detail_html = opener.open(urllib.request.Request(detail_url, headers=HEADERS), timeout=10).read().decode('utf-8', errors='ignore')
+    detail_html = opener.open(urllib.request.Request(detail_url, headers=HEADERS), timeout=5).read().decode('utf-8', errors='ignore')
 
     case_no_m = re.search(r'cno=([^&]+)', detail_url)
     cyear_m = re.search(r'cyear=([^&]+)', detail_url)
     case_no = f"{case_no_m.group(1)}/{cyear_m.group(1)}" if (case_no_m and cyear_m) else "वाद दर्ज"
 
-    party_match = re.search(r'id="txt_lbl_party">(.*?)</span>.*?id="txt_lbl_detail">(.*?)</span>', detail_html, re.DOTALL)
+    party_match = RE_PARTY.search(detail_html)
     vadi = party_match.group(1).replace('&nbsp;', ' ').strip() if party_match else ""
     prativadi = party_match.group(2).replace('&nbsp;', ' ').strip() if party_match else ""
     parties = f"{vadi} बनाम {prativadi}" if (vadi or prativadi) else "वादी बनाम प्रतिवादी"
 
-    status_m = re.search(r'id="lbl_status">(.*?)</span>', detail_html)
-    filing_m = re.search(r'id="txt_file_dt">(.*?)</span>', detail_html)
-    disposal_m = re.search(r'id="lbl_disposal_dt">(.*?)</span>', detail_html)
-    act_m = re.search(r'id="txt_act_sect_detail">(.*?)</span>', detail_html)
+    status_m = RE_STATUS.search(detail_html)
+    filing_m = RE_FILING.search(detail_html)
+    disposal_m = RE_DISPOSAL.search(detail_html)
+    act_m = RE_ACT.search(detail_html)
 
     status = status_m.group(1).strip() if status_m else "निस्तारित"
     filing_dt = filing_m.group(1).strip() if filing_m else ""
@@ -116,15 +147,15 @@ def live_search_vaad_case(case_auto_no):
     act_sect = act_m.group(1).strip() if act_m else "उत्तर प्रदेश राजस्व संहिता - 2006"
 
     orders_list = []
-    gen_orders_link = re.search(r'href="([^"]*BOR/Generate_Orders\.aspx[^"]+)"', detail_html, re.IGNORECASE)
+    gen_orders_link = RE_GENORDERS.search(detail_html)
     
     if gen_orders_link:
         gen_raw_link = gen_orders_link.group(1).replace('./', '').replace('&amp;', '&')
         gen_raw_url = "https://vaad.up.nic.in/" + gen_raw_link
         gen_url = safe_encode_url(gen_raw_url)
         try:
-            gen_html = opener.open(urllib.request.Request(gen_url, headers=HEADERS), timeout=10).read().decode('utf-8', errors='ignore')
-            order_entries = re.findall(r'(\d{2}/\d{2}/\d{4})\b.*?order_id=(\d+)', gen_html, re.DOTALL)
+            gen_html = opener.open(urllib.request.Request(gen_url, headers=HEADERS), timeout=4).read().decode('utf-8', errors='ignore')
+            order_entries = RE_ORDERENTRY.findall(gen_html)
             for idx, (date_str, oid) in enumerate(order_entries):
                 is_latest = (idx == len(order_entries) - 1)
                 orders_list.append({
@@ -138,7 +169,7 @@ def live_search_vaad_case(case_auto_no):
             print("Generate orders error:", e)
 
     if not orders_list:
-        all_oids = re.findall(r'order_id=(\d+)', detail_html)
+        all_oids = RE_SINGLE_ORDER.findall(detail_html)
         if all_oids:
             for idx, oid in enumerate(all_oids):
                 is_latest = (idx == len(all_oids) - 1)
@@ -150,7 +181,7 @@ def live_search_vaad_case(case_auto_no):
                     "title": f"आदेश {idx + 1} (तिथि: {disposal_dt or 'अंतिम आदेश'})" + (" - अंतिम आदेश" if is_latest else "")
                 })
 
-    return {
+    result_data = {
         "case_no": case_no,
         "computer_case_no": case_auto_no,
         "mandal": "उत्तर प्रदेश मण्डल",
@@ -165,6 +196,11 @@ def live_search_vaad_case(case_auto_no):
         "orders": orders_list
     }
 
+    # Store in high speed cache
+    CASE_CACHE[case_auto_no] = (now, result_data)
+    return result_data
+
+
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
@@ -172,7 +208,7 @@ class handler(BaseHTTPRequestHandler):
         query = urllib.parse.parse_qs(parsed.query)
 
         if path.startswith("/api/status"):
-            self.send_json_response({"status": "online", "server": "UP VAAD Vercel Live Engine Active"})
+            self.send_json_response({"status": "online", "server": "UP VAAD High-Speed Engine Active"})
             return
 
         if path.startswith("/api/search"):
@@ -201,15 +237,29 @@ class handler(BaseHTTPRequestHandler):
             remove_qr = query.get("remove_qr", ["true"])[0].lower() == "true"
             remove_disclaimer = query.get("remove_disclaimer", ["true"])[0].lower() == "true"
 
+            cache_key = f"{order_id}_{remove_qr}_{remove_disclaimer}"
+            now = time.time()
+            if cache_key in ORDER_CACHE:
+                cached_time, cached_html = ORDER_CACHE[cache_key]
+                if now - cached_time < ORDER_TTL:
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/html; charset=utf-8")
+                    self.send_header("Access-Control-Allow-Origin", "*")
+                    self.end_headers()
+                    self.wfile.write(cached_html.encode("utf-8"))
+                    return
+
             try:
                 target_url = f"https://vaad.up.nic.in/judgement/Print_Court_Order_External.aspx?login_type=T&order_id={order_id}"
                 req = urllib.request.Request(target_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
-                with urllib.request.urlopen(req, context=ssl_ctx, timeout=10) as resp:
+                with urllib.request.urlopen(req, context=ssl_ctx, timeout=6) as resp:
                     raw_html = resp.read().decode('utf-8', errors='ignore')
             except Exception as ex:
                 raw_html = f"<h2>आदेश प्राप्त करने में समस्या: {str(ex)}</h2>"
 
             final_html = clean_order_document(raw_html, remove_qr=remove_qr, remove_disclaimer=remove_disclaimer)
+            ORDER_CACHE[cache_key] = (now, final_html)
+
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Access-Control-Allow-Origin", "*")
