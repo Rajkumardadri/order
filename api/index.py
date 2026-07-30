@@ -76,6 +76,17 @@ def reformat_order_header_html(html_str):
 
     cleaned = re.sub(r'(न्यायालय\s*:[^<\n]+)<br\s*/?>\s*(मण्डल\s*:[^<\n]+)', swap_mandal_court, cleaned, flags=re.IGNORECASE)
 
+    # 4. Format Vadi बनाम Prativadi with clean spacing
+    def expand_parties_spacing(m):
+        vadi = m.group(1).strip()
+        prativadi = m.group(2).strip()
+        return f"{vadi}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;बनाम&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{prativadi}"
+
+    cleaned = re.sub(r'([^\n<]+)\s+बनाम\s+([^\n<]+)', expand_parties_spacing, cleaned, flags=re.IGNORECASE)
+
+    # 5. Clean quotes around अंतिम आदेश
+    cleaned = re.sub(r'"\s*(अंतिम आदेश|अंतरिम आदेश)\s*"', r'\1', cleaned, flags=re.IGNORECASE)
+
     return cleaned
 
 
@@ -93,21 +104,81 @@ def clean_order_document(html_str, remove_qr=True, remove_disclaimer=True):
         cleaned = re.sub(r'<tr>\s*<td[^>]*>\s*<strong>\s*<u[^>]*>Disclaimer\s*:.*?</td>\s*</tr>', '', cleaned, flags=re.DOTALL | re.IGNORECASE)
         cleaned = re.sub(r'<div[^>]*>.*?Disclaimer\s*:.*?</div>', '', cleaned, flags=re.DOTALL | re.IGNORECASE)
 
+    # Center top barcode image
+    cleaned = re.sub(r'<td\s+align="right"\s+valign="top">\s*(<img\s+id="barcode_img"[^>]*>)\s*</td>',
+                     r'<td align="center" valign="top" style="text-align:center;">\1</td>', cleaned, flags=re.IGNORECASE)
+
     cleaned = reformat_order_header_html(cleaned)
 
     css_injection = """
     <style>
-        #qrcode, canvas, img[src*="QRCode"], .square-qr-code {
+        @import url('https://fonts.googleapis.com/css2?family=Mukta:wght@400;500;600;700&display=swap');
+        
+        body, html {
+            background-color: #ffffff !important;
+            color: #000000 !important;
+            font-family: 'Mukta', 'Segoe UI', Arial, sans-serif !important;
+            margin: 0 !important;
+            padding: 20px 30px !important;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        #section-to-print {
+            max-width: 800px !important;
+            margin: 0 auto !important;
+            padding: 10px !important;
+            background: #ffffff !important;
+            color: #000000 !important;
+            font-family: 'Mukta', 'Segoe UI', Arial, sans-serif !important;
+        }
+
+        td {
+            color: #000000 !important;
+            font-family: 'Mukta', 'Segoe UI', Arial, sans-serif !important;
+        }
+
+        #barcode_img {
+            display: block !important;
+            margin: 10px auto 20px auto !important;
+            max-height: 45px !important;
+            width: auto !important;
+        }
+
+        /* Top Header Box */
+        td[align="center"] {
+            font-size: 15px !important;
+            line-height: 1.8 !important;
+            font-weight: 700 !important;
+            color: #000000 !important;
+            text-align: center !important;
+        }
+
+        /* Order Body Paragraphs */
+        td[align="left"] {
+            font-size: 14.5px !important;
+            line-height: 1.75 !important;
+            color: #000000 !important;
+            font-weight: 500 !important;
+            text-align: justify !important;
+            padding-top: 15px !important;
+        }
+
+        #qrcode, canvas, img[src*="QRCode"], .square-qr-code, .disclaimer-box {
             display: none !important;
             visibility: hidden !important;
             height: 0 !important;
             width: 0 !important;
         }
+
         @media print {
-            #qrcode, canvas, img[src*="QRCode"], .square-qr-code, .disclaimer-box {
-                display: none !important;
+            body, html {
+                padding: 10mm 15mm !important;
             }
-            .no-print {
+            #section-to-print {
+                width: 100% !important;
+                margin: 0 !important;
+            }
+            #qrcode, canvas, img[src*="QRCode"], .square-qr-code, .disclaimer-box, .no-print {
                 display: none !important;
             }
         }
