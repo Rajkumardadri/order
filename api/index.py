@@ -117,7 +117,7 @@ def reformat_order_header_html(html_str):
             elif clean_sline.startswith('आदेश तिथि'):
                 order_date_line = sline
             elif 'आदेश' in clean_sline and ('अंतिम' in clean_sline or 'अंतरिम' in clean_sline or '"' in clean_sline):
-                order_type_line = re.sub(r'["\'”‘]', '', sline).strip()
+                order_type_line = re.sub(r'["\'”‘]', '', clean_sline).strip()
             else:
                 other_lines.append(sline)
 
