@@ -1,12 +1,12 @@
 :root {
-    --primary: #87ceeb;
-    --primary-dark: #5baed8;
+    --primary: #df7ea8;
+    --primary-dark: #34EBD5;
     --secondary: #2c3e50;
-    --bg-main: #f4f6f9;
+    --bg-main: #27d7be82;
     --card-bg: #ffffff;
     --text-main: #2c3e50;
-    --text-muted: #6c757d;
-    --border-color: #e2e8f0;
+    --text-muted: #5d7c98;
+    --border-color: #0f0f14;
     --success: #27ae60;
     --danger: #c0392b;
     --radius: 8px;
