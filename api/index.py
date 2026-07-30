@@ -68,24 +68,83 @@ def reformat_order_header_html(html_str):
 
     cleaned = re.sub(r'(उत्तर प्रदेश राजस्व संहिता\s*-[^,<\n]+)\s*,\s*(अंतर्गत धारा:[^<\n]+)', swap_act_section, cleaned, flags=re.IGNORECASE)
 
-    # 3. Place Mandal line FIRST (topmost), and Nyayalaya line SECOND (below Mandal)
-    def swap_mandal_court(m):
-        court_part = m.group(1).strip()
-        mandal_part = m.group(2).strip()
-        return f"{mandal_part}<br />{court_part}"
+    # 3. Target the header <td align="center"...> and re-arrange top lines:
+    # 1. मण्डल (Mandal, Janpad, Tehsil)
+    # 2. न्यायालय (Court)
+    # 3. वाद संख्या (Case No)
+    # 4. [Names] (वादी बनाम प्रतिवादी)
+    # 5. कंप्यूटरीकृत वाद संख्या (Computerized Case No)
+    # 6. अंतर्गत धारा (Act/Section)
+    # 7. "अंतिम आदेश" (Order Type)
+    # 8. आदेश तिथि (Order Date)
+    def replace_header_td(match):
+        attrs = match.group(1)
+        content = match.group(2)
 
-    cleaned = re.sub(r'(न्यायालय\s*:[^<\n]+)<br\s*/?>\s*(मण्डल\s*:[^<\n]+)', swap_mandal_court, cleaned, flags=re.IGNORECASE)
+        raw_lines = re.split(r'<br\s*/?>|\n', content)
+        
+        mandal_line = ""
+        court_line = ""
+        case_no_line = ""
+        parties_line = ""
+        comp_no_line = ""
+        act_sec_line = ""
+        order_date_line = ""
+        order_type_line = ""
+        other_lines = []
 
-    # 4. Format Vadi बनाम Prativadi with clean spacing
-    def expand_parties_spacing(m):
-        vadi = m.group(1).strip()
-        prativadi = m.group(2).strip()
-        return f"{vadi}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;बनाम&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{prativadi}"
+        for line in raw_lines:
+            sline = line.strip()
+            if not sline:
+                continue
 
-    cleaned = re.sub(r'([^\n<]+)\s+बनाम\s+([^\n<]+)', expand_parties_spacing, cleaned, flags=re.IGNORECASE)
+            clean_sline = re.sub(r'&nbsp;', ' ', sline).strip()
 
-    # 5. Clean quotes around अंतिम आदेश
-    cleaned = re.sub(r'"\s*(अंतिम आदेश|अंतरिम आदेश)\s*"', r'\1', cleaned, flags=re.IGNORECASE)
+            if 'पीठासीन अधिकारी का नाम' in clean_sline:
+                continue
+            elif clean_sline.startswith('मण्डल') or 'जनपद' in clean_sline:
+                mandal_line = sline
+            elif clean_sline.startswith('न्यायालय'):
+                court_line = sline
+            elif clean_sline.startswith('कम्प्यूटरीकृत वाद संख्या') or clean_sline.startswith('कंप्यूटरीकृत वाद संख्या'):
+                comp_no_line = sline
+            elif clean_sline.startswith('वाद संख्या'):
+                case_no_line = sline
+            elif 'बनाम' in clean_sline:
+                parties_line = sline
+            elif 'उत्तर प्रदेश राजस्व संहिता' in clean_sline or 'अंतर्गत धारा' in clean_sline:
+                act_sec_line = sline
+            elif clean_sline.startswith('आदेश तिथि'):
+                order_date_line = sline
+            elif 'आदेश' in clean_sline and ('अंतिम' in clean_sline or 'अंतरिम' in clean_sline or '"' in clean_sline):
+                order_type_line = sline
+            else:
+                other_lines.append(sline)
+
+        new_lines = []
+        if mandal_line:
+            new_lines.append(mandal_line)
+        if court_line:
+            new_lines.append(court_line)
+        if case_no_line:
+            new_lines.append(case_no_line)
+        if parties_line:
+            new_lines.append(parties_line)
+        if comp_no_line:
+            new_lines.append(comp_no_line)
+        if act_sec_line:
+            new_lines.append(act_sec_line)
+        if order_type_line:
+            new_lines.append(order_type_line)
+        if order_date_line:
+            new_lines.append(order_date_line)
+        
+        new_lines.extend(other_lines)
+        new_inner = "<br />".join(new_lines)
+        return f'<td{attrs}>{new_inner}</td>'
+
+    pattern = r'<td([^>]*valign="middle"[^>]*)>(.*?"?न्यायालय.*?)</td>'
+    cleaned = re.sub(pattern, replace_header_td, cleaned, flags=re.DOTALL | re.IGNORECASE)
 
     return cleaned
 
@@ -104,81 +163,21 @@ def clean_order_document(html_str, remove_qr=True, remove_disclaimer=True):
         cleaned = re.sub(r'<tr>\s*<td[^>]*>\s*<strong>\s*<u[^>]*>Disclaimer\s*:.*?</td>\s*</tr>', '', cleaned, flags=re.DOTALL | re.IGNORECASE)
         cleaned = re.sub(r'<div[^>]*>.*?Disclaimer\s*:.*?</div>', '', cleaned, flags=re.DOTALL | re.IGNORECASE)
 
-    # Center top barcode image
-    cleaned = re.sub(r'<td\s+align="right"\s+valign="top">\s*(<img\s+id="barcode_img"[^>]*>)\s*</td>',
-                     r'<td align="center" valign="top" style="text-align:center;">\1</td>', cleaned, flags=re.IGNORECASE)
-
     cleaned = reformat_order_header_html(cleaned)
 
     css_injection = """
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Mukta:wght@400;500;600;700&display=swap');
-        
-        body, html {
-            background-color: #ffffff !important;
-            color: #000000 !important;
-            font-family: 'Mukta', 'Segoe UI', Arial, sans-serif !important;
-            margin: 0 !important;
-            padding: 20px 30px !important;
-            -webkit-font-smoothing: antialiased;
-        }
-
-        #section-to-print {
-            max-width: 800px !important;
-            margin: 0 auto !important;
-            padding: 10px !important;
-            background: #ffffff !important;
-            color: #000000 !important;
-            font-family: 'Mukta', 'Segoe UI', Arial, sans-serif !important;
-        }
-
-        td {
-            color: #000000 !important;
-            font-family: 'Mukta', 'Segoe UI', Arial, sans-serif !important;
-        }
-
-        #barcode_img {
-            display: block !important;
-            margin: 10px auto 20px auto !important;
-            max-height: 45px !important;
-            width: auto !important;
-        }
-
-        /* Top Header Box */
-        td[align="center"] {
-            font-size: 15px !important;
-            line-height: 1.8 !important;
-            font-weight: 700 !important;
-            color: #000000 !important;
-            text-align: center !important;
-        }
-
-        /* Order Body Paragraphs */
-        td[align="left"] {
-            font-size: 14.5px !important;
-            line-height: 1.75 !important;
-            color: #000000 !important;
-            font-weight: 500 !important;
-            text-align: justify !important;
-            padding-top: 15px !important;
-        }
-
-        #qrcode, canvas, img[src*="QRCode"], .square-qr-code, .disclaimer-box {
+        #qrcode, canvas, img[src*="QRCode"], .square-qr-code {
             display: none !important;
             visibility: hidden !important;
             height: 0 !important;
             width: 0 !important;
         }
-
         @media print {
-            body, html {
-                padding: 10mm 15mm !important;
+            #qrcode, canvas, img[src*="QRCode"], .square-qr-code, .disclaimer-box {
+                display: none !important;
             }
-            #section-to-print {
-                width: 100% !important;
-                margin: 0 !important;
-            }
-            #qrcode, canvas, img[src*="QRCode"], .square-qr-code, .disclaimer-box, .no-print {
+            .no-print {
                 display: none !important;
             }
         }
