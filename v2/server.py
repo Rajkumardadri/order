@@ -56,125 +56,27 @@ def safe_encode_url(url_str):
     return urllib.parse.urlunsplit((parsed.scheme, parsed.netloc, encoded_path, encoded_query, parsed.fragment))
 
 
-def format_order_header(html_str):
-    header_td_pattern = re.compile(
-        r'<td\s+align="center"\s+valign="middle"[^>]*style="[^"]*"[^>]*>(.*?)</td>',
-        re.DOTALL | re.IGNORECASE
-    )
-    match = header_td_pattern.search(html_str)
-    if not match:
-        header_td_pattern = re.compile(
-            r'<td[^>]*>(?=.*?(?:न्यायालय|मण्डल|कम्प्यूटरीकृत वाद संख्या)).*?</td>',
-            re.DOTALL | re.IGNORECASE
-        )
-        match = header_td_pattern.search(html_str)
+def reformat_order_header_html(html_str):
+    cleaned = html_str
+    
+    # 1. Remove पीठासीन अधिकारी का नाम line and its line breaks cleanly
+    cleaned = re.sub(r'<br\s*/?>\s*पीठासीन अधिकारी का नाम:[^<]*', '', cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r'पीठासीन अधिकारी का नाम:[^<]*<br\s*/?>\s*', '', cleaned, flags=re.IGNORECASE)
 
-    if match:
-        raw_td_inner = match.group(1)
-        
-        lines = [re.sub(r'<[^>]+>', '', l).replace('&nbsp;', ' ').strip() for l in raw_td_inner.split('<br />') if l.strip()]
-        if len(lines) <= 2:
-            lines = [re.sub(r'<[^>]+>', '', l).replace('&nbsp;', ' ').strip() for l in raw_td_inner.split('<br>') if l.strip()]
-        
-        nyayalaya_val = ""
-        mandal_val = ""
-        janpad_val = ""
-        tehsil_val = ""
-        comp_no_val = ""
-        case_no_val = ""
-        vadi_val = ""
-        prativadi_val = ""
-        dhara_val = ""
-        act_val = ""
-        status_val = ""
-        order_date_val = ""
+    # 2. Format Act & Section so 'अंतर्गत धारा' comes FIRST, followed by 'उत्तर प्रदेश राजस्व संहिता'
+    def swap_act_section(m):
+        act_part = m.group(1).strip()
+        sec_part = m.group(2).strip()
+        return f"{sec_part} , {act_part}"
 
-        for l in lines:
-            if 'पीठासीन' in l:
-                continue
-            elif 'मण्डल' in l:
-                m_m = re.search(r'मण्डल\s*:\s*-?\s*([^,]+)', l)
-                j_m = re.search(r'जनपद\s*:\s*-?\s*([^,]+)', l)
-                t_m = re.search(r'तहसील\s*:\s*-?\s*([^,]+)', l)
-                if m_m: mandal_val = m_m.group(1).strip()
-                if j_m: janpad_val = j_m.group(1).strip()
-                if t_m: tehsil_val = t_m.group(1).strip()
-            elif 'न्यायालय' in l:
-                nyayalaya_val = re.sub(r'^न्यायालय\s*:\s*-?\s*', '', l).strip()
-            elif 'कम्प्यूटरीकृत वाद संख्या' in l or 'कंप्यूटरीकृत वाद संख्या' in l:
-                comp_no_val = re.sub(r'^(?:कम्प्यूटरीकृत|कंप्यूटरीकृत)\s*वाद\s*संख्या\s*:\s*-?\s*', '', l).strip()
-            elif 'वाद संख्या' in l:
-                case_no_val = re.sub(r'^वाद\s*संख्या\s*:\s*-?\s*', '', l).strip()
-            elif 'बनाम' in l:
-                parts = l.split('बनाम')
-                vadi_val = parts[0].strip()
-                if len(parts) > 1:
-                    prativadi_val = parts[1].strip()
-            elif 'धारा' in l or 'अधिनियम' in l or 'संहिता' in l:
-                d_m = re.search(r'(?:अंतर्गत|अन्तर्गत)\s*धारा\s*:\s*-?\s*([0-9A-Za-z\s]+)', l)
-                if d_m:
-                    dhara_val = d_m.group(1).strip()
-                act_clean = re.sub(r',?\s*(?:अंतर्गत|अन्तर्गत)\s*धारा\s*:\s*-?\s*[0-9A-Za-z\s]+', '', l).strip(' ,')
-                if act_clean:
-                    act_val = act_clean
-            elif 'आदेश तिथि' in l:
-                order_date_val = re.sub(r'^आदेश\s*तिथि\s*:\s*-?\s*', '', l).strip()
-            elif 'आदेश' in l:
-                status_val = l.replace('"', '').strip()
+    cleaned = re.sub(r'(उत्तर प्रदेश राजस्व संहिता\s*-[^,<\n]+)\s*,\s*(अंतर्गत धारा:[^<\n]+)', swap_act_section, cleaned, flags=re.IGNORECASE)
 
-        # Reconstruct exact formatted lines
-        line1 = f"मण्डल:- {mandal_val},जनपद:- {janpad_val},तहसील:- {tehsil_val}" if (mandal_val or janpad_val or tehsil_val) else ""
-        line2 = f"न्यायालय {nyayalaya_val}" if nyayalaya_val else ""
-        line3 = f"वाद संख्या:- {case_no_val}" if case_no_val else ""
-        if vadi_val and prativadi_val:
-            line4 = f"{vadi_val}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;बनाम&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{prativadi_val}"
-        elif vadi_val:
-            line4 = vadi_val
-        else:
-            line4 = ""
-
-        line5 = f"कंप्यूटरीकृत वाद संख्या :-{comp_no_val}" if comp_no_val else ""
-
-        if dhara_val and act_val:
-            line6 = f"अंतर्गत धारा:- {dhara_val},{act_val}"
-        elif dhara_val:
-            line6 = f"अंतर्गत धारा:- {dhara_val}"
-        elif act_val:
-            line6 = act_val
-        else:
-            line6 = ""
-
-        line7 = f"आदेश तिथि:- {order_date_val}" if order_date_val else ""
-        line8 = status_val if status_val else ""
-
-        new_header_html = f'''<td align="center" valign="middle" style="padding: 15px 0 20px 0;">
-            <div style="font-family: 'Noto Sans Devanagari', 'Hind', 'Mukta', 'Mangal', Calibri, sans-serif; text-align: center; color: #000000; font-weight: 700; line-height: 1.35; font-size: 19px; -webkit-font-smoothing: antialiased;">
-                {f'<div style="margin-bottom: 2px;">{line1}</div>' if line1 else ''}
-                {f'<div style="margin-bottom: 2px;">{line2}</div>' if line2 else ''}
-                {f'<div style="margin-bottom: 3px;">{line3}</div>' if line3 else ''}
-                {f'<div style="margin-bottom: 4px; font-size: 20px;">{line4}</div>' if line4 else ''}
-                {f'<div style="margin-bottom: 2px;">{line5}</div>' if line5 else ''}
-                {f'<div style="margin-bottom: 2px;">{line6}</div>' if line6 else ''}
-                {f'<div style="margin-bottom: 2px;">{line7}</div>' if line7 else ''}
-                {f'<div style="margin-top: 2px;">{line8}</div>' if line8 else ''}
-            </div>
-        </td>'''
-
-        html_str = html_str[:match.start()] + new_header_html + html_str[match.end():]
-
-    return html_str
+    return cleaned
 
 
 def clean_order_document(html_str, remove_qr=True, remove_disclaimer=True):
     cleaned = html_str.replace('src="BarCode_Print.aspx', 'src="https://vaad.up.nic.in/judgement/BarCode_Print.aspx')
     cleaned = cleaned.replace('src="../QRCodeJs/', 'src="https://vaad.up.nic.in/QRCodeJs/')
-
-    # Remove "पीठासीन अधिकारी का नाम" row and line completely without leaving empty gaps
-    cleaned = re.sub(r'<tr>\s*<td[^>]*>\s*(?:<b>|<strong>)?\s*पीठासीन अधिकारी का नाम.*?(?:</b>|</strong>)?\s*</td>\s*</tr>', '', cleaned, flags=re.DOTALL | re.IGNORECASE)
-    cleaned = re.sub(r'(?:<b>|<strong>)?\s*पीठासीन अधिकारी का नाम\s*:\s*-?\s*[^<\n\r]*(?:</b>|</strong>)?\s*(?:<br\s*/?>)?\s*', '', cleaned, flags=re.IGNORECASE)
-
-    # Format header to exact user image layout
-    cleaned = format_order_header(cleaned)
 
     if remove_qr:
         cleaned = re.sub(r'<div id="qrcode">.*?</div>', '<div id="qrcode"></div>', cleaned, flags=re.DOTALL)
@@ -186,13 +88,10 @@ def clean_order_document(html_str, remove_qr=True, remove_disclaimer=True):
         cleaned = re.sub(r'<tr>\s*<td[^>]*>\s*<strong>\s*<u[^>]*>Disclaimer\s*:.*?</td>\s*</tr>', '', cleaned, flags=re.DOTALL | re.IGNORECASE)
         cleaned = re.sub(r'<div[^>]*>.*?Disclaimer\s*:.*?</div>', '', cleaned, flags=re.DOTALL | re.IGNORECASE)
 
+    cleaned = reformat_order_header_html(cleaned)
+
     css_injection = """
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@600;700;800&family=Hind:wght@600;700&family=Mukta:wght@600;700&display=swap');
-        body, td, div, p, span, b, strong {
-            font-family: 'Noto Sans Devanagari', 'Hind', 'Mukta', 'Mangal', 'Calibri', sans-serif !important;
-            color: #000000 !important;
-        }
         #qrcode, canvas, img[src*="QRCode"], .square-qr-code {
             display: none !important;
             visibility: hidden !important;
