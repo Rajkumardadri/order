@@ -54,87 +54,21 @@ def safe_encode_url(url_str):
 
 
 def reformat_order_header_html(html_str):
-    def replace_header_td(match):
-        attrs = match.group(1)
-        content = match.group(2)
+    cleaned = html_str
+    
+    # 1. Remove पीठासीन अधिकारी का नाम line and its line breaks cleanly
+    cleaned = re.sub(r'<br\s*/?>\s*पीठासीन अधिकारी का नाम:[^<]*', '', cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r'पीठासीन अधिकारी का नाम:[^<]*<br\s*/?>\s*', '', cleaned, flags=re.IGNORECASE)
 
-        raw_lines = re.split(r'<br\s*/?>|\n', content)
-        
-        mandal_line = ""
-        court_line = ""
-        case_no_line = ""
-        parties_line = ""
-        comp_no_line = ""
-        act_sec_line = ""
-        order_date_line = ""
-        order_type_line = ""
-        other_lines = []
+    # 2. Format Act & Section so 'अंतर्गत धारा' comes FIRST, followed by 'उत्तर प्रदेश राजस्व संहिता'
+    def swap_act_section(m):
+        act_part = m.group(1).strip()
+        sec_part = m.group(2).strip()
+        return f"{sec_part} , {act_part}"
 
-        for line in raw_lines:
-            sline = line.strip()
-            clean_sline = re.sub(r'&nbsp;', ' ', sline).strip()
-            if not clean_sline:
-                continue
+    cleaned = re.sub(r'(उत्तर प्रदेश राजस्व संहिता\s*-[^,<\n]+)\s*,\s*(अंतर्गत धारा:[^<\n]+)', swap_act_section, cleaned, flags=re.IGNORECASE)
 
-            if 'पीठासीन अधिकारी का नाम' in clean_sline:
-                # Remove completely per user request
-                continue
-            elif clean_sline.startswith('मण्डल') or 'जनपद' in clean_sline:
-                mandal_line = clean_sline
-            elif clean_sline.startswith('न्यायालय'):
-                court_line = clean_sline
-            elif clean_sline.startswith('कम्प्यूटरीकृत वाद संख्या') or clean_sline.startswith('कंप्यूटरीकृत वाद संख्या'):
-                comp_no_line = clean_sline
-            elif clean_sline.startswith('वाद संख्या'):
-                case_no_line = clean_sline
-            elif 'बनाम' in clean_sline:
-                parties_line = clean_sline
-            elif 'उत्तर प्रदेश राजस्व संहिता' in clean_sline or 'अंतर्गत धारा' in clean_sline:
-                act_sec_line = clean_sline
-            elif clean_sline.startswith('आदेश तिथि'):
-                order_date_line = clean_sline
-            elif 'आदेश' in clean_sline and ('अंतिम' in clean_sline or 'अंतरिम' in clean_sline or '"' in clean_sline):
-                order_type_line = clean_sline
-            else:
-                other_lines.append(clean_sline)
-
-        # Sequence requested:
-        # 1. मण्डल (Mandal, Janpad, Tehsil)
-        # 2. न्यायालय (Court)
-        # 3. वाद संख्या (Case No)
-        # 4. names (वादी बनाम प्रतिवादी)
-        # 5. कंप्यूटरीकृत वाद संख्या (Computerized Case No)
-        # 6. अंतर्गत धारा (Act/Section)
-        # 7. आदेश तिथि (Order Date)
-        # 8. "अंतिम आदेश" (Order Type)
-        new_lines = []
-        if mandal_line:
-            new_lines.append(mandal_line)
-        if court_line:
-            new_lines.append(court_line)
-        if case_no_line:
-            new_lines.append(case_no_line)
-        if parties_line:
-            new_lines.append(parties_line)
-        if comp_no_line:
-            new_lines.append(comp_no_line)
-        if act_sec_line:
-            new_lines.append(act_sec_line)
-        if order_date_line:
-            new_lines.append(order_date_line)
-        if order_type_line:
-            new_lines.append(order_type_line)
-        
-        new_lines.extend(other_lines)
-        new_inner = "<br />".join(new_lines)
-        return f'<td{attrs}>{new_inner}</td>'
-
-    pattern = r'<td([^>]*align="center"[^>]*)>(.*?"?न्यायालय.*?)</td>'
-    new_html = re.sub(pattern, replace_header_td, html_str, flags=re.DOTALL | re.IGNORECASE)
-    # Also fallback remove Pithasin line if outside standard center td
-    new_html = re.sub(r'<br\s*/?>\s*पीठासीन अधिकारी का नाम:[^<]*', '', new_html, flags=re.IGNORECASE)
-    new_html = re.sub(r'पीठासीन अधिकारी का नाम:[^<]*<br\s*/?>', '', new_html, flags=re.IGNORECASE)
-    return new_html
+    return cleaned
 
 
 def clean_order_document(html_str, remove_qr=True, remove_disclaimer=True):
