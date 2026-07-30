@@ -1,12 +1,13 @@
 :root {
-    --primary: #df7ea8;
-    --primary-dark: #34EBD5;
-    --secondary: #2c3e50;
-    --bg-main: #27d7be82;
+    --primary: #800000;
+    --primary-dark: #600000;
+    --accent: #df7126;
+    --secondary: #2b303a;
+    --bg-main: #f4f5f7;
     --card-bg: #ffffff;
-    --text-main: #2c3e50;
-    --text-muted: #5d7c98;
-    --border-color: #0f0f14;
+    --text-main: #1f2937;
+    --text-muted: #4b5563;
+    --border-color: #d1d5db;
     --success: #27ae60;
     --danger: #c0392b;
     --radius: 8px;
@@ -34,8 +35,8 @@ body {
     background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
     color: white;
     padding: 16px 24px;
-    box-shadow: 0 4px 15px rgba(103, 11, 11, 0.25);
-    border-bottom: 3px solid #f1c40f;
+    box-shadow: 0 4px 15px rgba(96, 0, 0, 0.3);
+    border-bottom: 4px solid var(--accent);
 }
 
 .header-container {
@@ -550,12 +551,13 @@ input:checked + .slider:before {
 }
 
 .app-footer {
-    background: var(--secondary);
+    background: var(--accent);
     color: white;
     text-align: center;
-    padding: 20px;
+    padding: 16px 20px;
     margin-top: auto;
-    font-size: 0.9rem;
+    font-size: 0.95rem;
+    font-weight: 500;
 }
 
 .sub-footer {
