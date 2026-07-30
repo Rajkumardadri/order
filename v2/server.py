@@ -56,6 +56,134 @@ def safe_encode_url(url_str):
     return urllib.parse.urlunsplit((parsed.scheme, parsed.netloc, encoded_path, encoded_query, parsed.fragment))
 
 
+def format_order_header(html_str):
+    header_td_pattern = re.compile(
+        r'<td\s+align="center"\s+valign="middle"[^>]*style="[^"]*"[^>]*>(.*?)</td>',
+        re.DOTALL | re.IGNORECASE
+    )
+    match = header_td_pattern.search(html_str)
+    if not match:
+        header_td_pattern = re.compile(
+            r'<td[^>]*>(?=.*?(?:न्यायालय|मण्डल|कम्प्यूटरीकृत वाद संख्या)).*?</td>',
+            re.DOTALL | re.IGNORECASE
+        )
+        match = header_td_pattern.search(html_str)
+
+    if match:
+        raw_td_inner = match.group(1)
+        
+        lines = [re.sub(r'<[^>]+>', '', l).replace('&nbsp;', ' ').strip() for l in raw_td_inner.split('<br />') if l.strip()]
+        if len(lines) <= 2:
+            lines = [re.sub(r'<[^>]+>', '', l).replace('&nbsp;', ' ').strip() for l in raw_td_inner.split('<br>') if l.strip()]
+        
+        nyayalaya = ""
+        mandal = ""
+        comp_no = ""
+        case_no = ""
+        parties = ""
+        act_dhara = ""
+        status = ""
+        order_date = ""
+
+        for l in lines:
+            if 'पीठासीन' in l:
+                continue
+            elif 'न्यायालय' in l:
+                nyayalaya = l
+            elif 'मण्डल' in l:
+                mandal = l
+            elif 'कम्प्यूटरीकृत वाद संख्या' in l or 'कंप्यूटरीकृत वाद संख्या' in l:
+                comp_no = l
+            elif 'वाद संख्या' in l:
+                case_no = l
+            elif 'बनाम' in l:
+                parties = l
+            elif 'धारा' in l or 'अधिनियम' in l or 'संहिता' in l:
+                act_dhara = l
+            elif 'आदेश तिथि' in l:
+                order_date = l
+            elif 'आदेश' in l:
+                status = l
+
+        # 1. Mandal line formatting
+        if mandal:
+            m_parts = [p.strip() for p in re.split(r'[,|]', mandal) if p.strip()]
+            formatted_m_parts = []
+            for p in m_parts:
+                p_clean = re.sub(r'^(?:मण्डल|जनपद|तहसील)\s*:\s*-?\s*', '', p)
+                if 'मण्डल' in p:
+                    formatted_m_parts.append(f"मण्डल:- {p_clean}")
+                elif 'जनपद' in p:
+                    formatted_m_parts.append(f"जनपद:- {p_clean}")
+                elif 'तहसील' in p:
+                    formatted_m_parts.append(f"तहसील:- {p_clean}")
+                else:
+                    formatted_m_parts.append(p)
+            mandal_formatted = ",".join(formatted_m_parts)
+        else:
+            mandal_formatted = ""
+
+        # 2. Nyayalaya line formatting
+        nyayalaya_clean = re.sub(r'^न्यायालय\s*:\s*-?\s*', '', nyayalaya).strip()
+        nyayalaya_formatted = f"न्यायालय {nyayalaya_clean}" if nyayalaya_clean else ""
+
+        # 3. Case No line formatting
+        case_no_clean = re.sub(r'^वाद\s*संख्या\s*:\s*-?\s*', '', case_no).strip()
+        case_no_formatted = f"वाद संख्या:- {case_no_clean}" if case_no_clean else ""
+
+        # 4. Parties line formatting
+        if 'बनाम' in parties:
+            p_parts = parties.split('बनाम')
+            vadi = p_parts[0].strip()
+            prativadi = p_parts[1].strip()
+            parties_formatted = f"{vadi}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;बनाम&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{prativadi}"
+        else:
+            parties_formatted = parties
+
+        # 5. Computerized Case No line formatting
+        comp_no_clean = re.sub(r'^(?:कम्प्यूटरीकृत|कंप्यूटरीकृत)\s*वाद\s*संख्या\s*:\s*-?\s*', '', comp_no).strip()
+        comp_no_formatted = f"कंप्यूटरीकृत वाद संख्या :-{comp_no_clean}" if comp_no_clean else ""
+
+        # 6. Act & Section line formatting
+        if 'धारा' in act_dhara:
+            dhara_m = re.search(r'(?:अंतर्गत|अन्तर्गत)\s*धारा\s*:\s*-?\s*([0-9A-Za-z\s]+)', act_dhara)
+            dhara_val = dhara_m.group(1).strip() if dhara_m else ""
+            act_val = re.sub(r',?\s*(?:अंतर्गत|अन्तर्गत)\s*धारा\s*:\s*-?\s*[0-9A-Za-z\s]+', '', act_dhara).strip(' ,')
+            if dhara_val and act_val:
+                act_dhara_formatted = f"अंतर्गत धारा:- {dhara_val},{act_val}"
+            elif dhara_val:
+                act_dhara_formatted = f"अंतर्गत धारा:- {dhara_val}"
+            else:
+                act_dhara_formatted = act_dhara
+        else:
+            act_dhara_formatted = act_dhara
+
+        # 7. Order Date line formatting
+        date_clean = re.sub(r'^आदेश\s*तिथि\s*:\s*-?\s*', '', order_date).strip()
+        date_formatted = f"आदेश तिथि:- {date_clean}" if date_clean else ""
+
+        # 8. Order Status line formatting
+        status_clean = status.replace('"', '').strip()
+        status_formatted = status_clean
+
+        new_header_html = f'''<td align="center" valign="middle" style="padding: 10px 0 15px 0;">
+            <div style="font-family: 'Hind', 'Mukta', 'Noto Sans Devanagari', 'Mangal', Calibri, sans-serif; text-align: center; color: #000000; font-weight: bold; line-height: 1.5;">
+                {f'<div style="font-size: 16px; margin-bottom: 3px;">{mandal_formatted}</div>' if mandal_formatted else ''}
+                {f'<div style="font-size: 16px; margin-bottom: 3px;">{nyayalaya_formatted}</div>' if nyayalaya_formatted else ''}
+                {f'<div style="font-size: 17px; margin-bottom: 5px;">{case_no_formatted}</div>' if case_no_formatted else ''}
+                {f'<div style="font-size: 18px; margin-bottom: 6px; word-spacing: 2px;">{parties_formatted}</div>' if parties_formatted else ''}
+                {f'<div style="font-size: 16px; margin-bottom: 3px;">{comp_no_formatted}</div>' if comp_no_formatted else ''}
+                {f'<div style="font-size: 16px; margin-bottom: 3px;">{act_dhara_formatted}</div>' if act_dhara_formatted else ''}
+                {f'<div style="font-size: 16px; margin-bottom: 3px;">{date_formatted}</div>' if date_formatted else ''}
+                {f'<div style="font-size: 17px; margin-top: 3px;">{status_formatted}</div>' if status_formatted else ''}
+            </div>
+        </td>'''
+
+        html_str = html_str[:match.start()] + new_header_html + html_str[match.end():]
+
+    return html_str
+
+
 def clean_order_document(html_str, remove_qr=True, remove_disclaimer=True):
     cleaned = html_str.replace('src="BarCode_Print.aspx', 'src="https://vaad.up.nic.in/judgement/BarCode_Print.aspx')
     cleaned = cleaned.replace('src="../QRCodeJs/', 'src="https://vaad.up.nic.in/QRCodeJs/')
@@ -63,6 +191,9 @@ def clean_order_document(html_str, remove_qr=True, remove_disclaimer=True):
     # Remove "पीठासीन अधिकारी का नाम" row and line completely without leaving empty gaps
     cleaned = re.sub(r'<tr>\s*<td[^>]*>\s*(?:<b>|<strong>)?\s*पीठासीन अधिकारी का नाम.*?(?:</b>|</strong>)?\s*</td>\s*</tr>', '', cleaned, flags=re.DOTALL | re.IGNORECASE)
     cleaned = re.sub(r'(?:<b>|<strong>)?\s*पीठासीन अधिकारी का नाम\s*:\s*-?\s*[^<\n\r]*(?:</b>|</strong>)?\s*(?:<br\s*/?>)?\s*', '', cleaned, flags=re.IGNORECASE)
+
+    # Format header to exact user image layout
+    cleaned = format_order_header(cleaned)
 
     if remove_qr:
         cleaned = re.sub(r'<div id="qrcode">.*?</div>', '<div id="qrcode"></div>', cleaned, flags=re.DOTALL)
@@ -76,6 +207,10 @@ def clean_order_document(html_str, remove_qr=True, remove_disclaimer=True):
 
     css_injection = """
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Hind:wght@500;600;700&family=Mukta:wght@500;600;700&display=swap');
+        body, td, div, p {
+            font-family: 'Hind', 'Mukta', 'Noto Sans Devanagari', 'Mangal', Calibri, sans-serif !important;
+        }
         #qrcode, canvas, img[src*="QRCode"], .square-qr-code {
             display: none !important;
             visibility: hidden !important;
