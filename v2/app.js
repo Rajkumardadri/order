@@ -44,10 +44,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    loadSampleBtn.addEventListener('click', () => {
-        caseAutoNoInput.value = 'T202411270212200';
-        performSearch('T202411270212200');
-    });
+    if (loadSampleBtn) {
+        loadSampleBtn.addEventListener('click', () => {
+            caseAutoNoInput.value = 'T202411270212200';
+            performSearch('T202411270212200');
+        });
+    }
 
     removeQrToggle.addEventListener('change', (e) => {
         removeSquareBarcode = e.target.checked;
@@ -87,8 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
         downloadCleanPdf();
     });
 
-    // Auto load default case on startup
-    performSearch('T202411270212200');
+// Auto load default case on startup (removed per user request)
 
     // Functions
     async function fetchServerStatus() {

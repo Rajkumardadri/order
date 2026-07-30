@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>उत्तर प्रदेश राजस्व न्यायालय - स्वच्छ आदेश प्रिंटर एवं पीडीएफ पोर्टल (v2)</title>
+
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-container">
+            <div class="brand-box">
+                <div class="emblem-circle">
+                    <img src="up-emblem.png" alt="UP Emblem" class="up-emblem">
+                </div>
+                <div class="brand-text">
+                    <h1>राजस्व न्यायालय कंप्यूटरीकृत प्रबंधन प्रणाली</h1>
+                </div>
+            </div>
+            <div class="server-status-badge" id="serverStatus">
+                <span class="status-dot online"></span>
+                <span class="status-text">वैध लाइव सर्वर (Connected to vaad.up.nic.in)</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <!-- Search Section -->
+        <section class="search-card">
+            <div class="card-header">
+                <span class="icon">🔍</span>
+                <h3>कंप्यूटरीकृत वाद संख्या से खोजें (Search Any UP VAAD Case)</h3>
+            </div>
+            
+            <form id="searchForm" class="search-form">
+                <div class="input-group">
+                    <label for="caseAutoNo">कंप्यूटरीकृत वाद संख्या (Computerized Case No) <span class="required">*</span></label>
+                    <div class="input-wrapper">
+                        <input type="text" id="caseAutoNo" placeholder="कंप्यूटरीकृत वाद संख्या दर्ज करें..." required autocomplete="off">
+                        <button type="submit" class="btn btn-primary" id="searchBtn">
+                            <span>प्रदर्शित करें (Search Live VAAD)</span>
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <div class="quick-options">
+                <div class="filter-toggle">
+                    <label class="switch">
+                        <input type="checkbox" id="removeQrToggle" checked>
+                        <span class="slider round"></span>
+                    </label>
+                    <span class="toggle-label">✨ स्क्वायर क्यूआर बारकोड हटाएं (No QR Code)</span>
+                </div>
+
+                <div class="filter-toggle">
+                    <label class="switch">
+                        <input type="checkbox" id="removeDisclaimerToggle" checked>
+                        <span class="slider round"></span>
+                    </label>
+                    <span class="toggle-label">🚫 नीचे से Disclaimer हटाएं (No Disclaimer)</span>
+                </div>
+                
+
+            </div>
+        </section>
+
+        <!-- Loader -->
+        <div id="loader" class="loader-box hidden">
+            <div class="spinner"></div>
+            <p>vaad.up.nic.in से लाइव वाद एवं सभी आदेश प्राप्त हो रहे हैं, कृपया प्रतीक्षा करें...</p>
+        </div>
+
+        <!-- Case Summary Section -->
+        <section id="caseSummarySection" class="case-summary-card hidden">
+            <div class="summary-header">
+                <div class="title-wrap">
+                    <h3>वाद का विवरण एवं सभी आदेश (Case Details & Orders)</h3>
+                    <span class="badge badge-success" id="caseStatusBadge">निस्तारित</span>
+                </div>
+                <div class="action-buttons">
+                    <button class="btn btn-danger" id="printLatestDirectBtn">
+                        ⚡ अंतिम आदेश सीधे प्रिंट करें
+                    </button>
+                </div>
+            </div>
+
+            <!-- Case Details Grid -->
+            <div class="details-grid">
+                <div class="detail-item">
+                    <span class="detail-label">वाद सं०:</span>
+                    <span class="detail-value" id="valCaseNo">-</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">कंप्यूटरीकृत वाद सं०:</span>
+                    <span class="detail-value highlight" id="valComputerNo">-</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">मण्डल - जनपद - तहसील:</span>
+                    <span class="detail-value" id="valLocation">-</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">न्यायालय:</span>
+                    <span class="detail-value" id="valCourt">-</span>
+                </div>
+                <div class="detail-item col-span-2">
+                    <span class="detail-label">वादी / प्रतिवादी:</span>
+                    <span class="detail-value" id="valParties">-</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">दाखिल करने का दिनांक:</span>
+                    <span class="detail-value" id="valFilingDate">-</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">निस्तारण दिनांक:</span>
+                    <span class="detail-value" id="valDisposalDate">-</span>
+                </div>
+                <div class="detail-item col-span-2">
+                    <span class="detail-label">अधिनियम, धारा:</span>
+                    <span class="detail-value" id="valActSection">-</span>
+                </div>
+            </div>
+
+            <!-- Orders Available List -->
+            <div class="orders-section">
+                <div class="orders-section-header">
+                    <h4>इस वाद के अब तक के सभी आदेश (All Available Orders)</h4>
+                    <span class="info-tag">💡 जिस भी आदेश को देखना या प्रिंट करना हो उसपर क्लिक करें</span>
+                </div>
+                
+                <div class="orders-list-tabs" id="ordersListTabs">
+                    <!-- Dynamic Order Buttons -->
+                </div>
+            </div>
+
+            <!-- Order Preview Frame & Controls -->
+            <div class="order-viewer-container">
+                <div class="viewer-toolbar">
+                    <div class="toolbar-title">
+                        <span class="badge badge-info" id="activeOrderBadge">आदेश चुनें</span>
+                        <span class="barcode-status-indicator" id="barcodeStatusText">✅ स्क्वायर क्यूआर बारकोड एवं Disclaimer हटा दिया गया है</span>
+                    </div>
+                    
+                    <div class="toolbar-actions">
+                        <button class="btn btn-success" id="printCleanOrderBtn">
+                            🖨️ ऑरिजनल आदेश प्रिंट करें (Print A4)
+                        </button>
+                        <button class="btn btn-outline" id="downloadPdfBtn">
+                            📥 PDF डाउनलोड करें
+                        </button>
+                    </div>
+                </div>
+
+                <div class="order-document-wrapper">
+                    <iframe id="orderIframe" class="official-order-iframe" src="about:blank"></iframe>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="app-footer">
+        <p>सर्वाधिकार सुरक्षित © 2026 राजस्व न्यायालय कंप्यूटरीकृत प्रबंधन प्रणाली, उत्तर प्रदेश (v2)</p>
+        <p class="sub-footer">Live Order Proxy Engine - No Barcode & No Disclaimer Print Generator.</p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
