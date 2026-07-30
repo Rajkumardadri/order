@@ -68,6 +68,14 @@ def reformat_order_header_html(html_str):
 
     cleaned = re.sub(r'(उत्तर प्रदेश राजस्व संहिता\s*-[^,<\n]+)\s*,\s*(अंतर्गत धारा:[^<\n]+)', swap_act_section, cleaned, flags=re.IGNORECASE)
 
+    # 3. Place Mandal line FIRST (topmost), and Nyayalaya line SECOND (below Mandal)
+    def swap_mandal_court(m):
+        court_part = m.group(1).strip()
+        mandal_part = m.group(2).strip()
+        return f"{mandal_part}<br />{court_part}"
+
+    cleaned = re.sub(r'(न्यायालय\s*:[^<\n]+)<br\s*/?>\s*(मण्डल\s*:[^<\n]+)', swap_mandal_court, cleaned, flags=re.IGNORECASE)
+
     return cleaned
 
 
