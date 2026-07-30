@@ -60,6 +60,10 @@ def clean_order_document(html_str, remove_qr=True, remove_disclaimer=True):
     cleaned = html_str.replace('src="BarCode_Print.aspx', 'src="https://vaad.up.nic.in/judgement/BarCode_Print.aspx')
     cleaned = cleaned.replace('src="../QRCodeJs/', 'src="https://vaad.up.nic.in/QRCodeJs/')
 
+    # Remove "पीठासीन अधिकारी का नाम" row and line completely without leaving empty gaps
+    cleaned = re.sub(r'<tr>\s*<td[^>]*>\s*(?:<b>|<strong>)?\s*पीठासीन अधिकारी का नाम.*?(?:</b>|</strong>)?\s*</td>\s*</tr>', '', cleaned, flags=re.DOTALL | re.IGNORECASE)
+    cleaned = re.sub(r'(?:<b>|<strong>)?\s*पीठासीन अधिकारी का नाम\s*:\s*-?\s*[^<\n\r]*(?:</b>|</strong>)?\s*(?:<br\s*/?>)?\s*', '', cleaned, flags=re.IGNORECASE)
+
     if remove_qr:
         cleaned = re.sub(r'<div id="qrcode">.*?</div>', '<div id="qrcode"></div>', cleaned, flags=re.DOTALL)
         cleaned = re.sub(r'var qrcode = new QRCode\(.*?\);', '', cleaned, flags=re.DOTALL)
