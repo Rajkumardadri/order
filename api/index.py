@@ -1,18 +1,14 @@
-from http.server import BaseHTTPRequestHandler
-import urllib.request
-import urllib.parse
-import json
+import os
 import re
 import ssl
-import http.cookiejar
 import time
+import json
+import urllib.request
+import urllib.parse
+import http.cookiejar
+from http.server import BaseHTTPRequestHandler
 
-# In-Memory High Speed Caching
-CASE_CACHE = {}      # case_auto_no -> (timestamp, data)
-ORDER_CACHE = {}     # cache_key -> (timestamp, html_str)
-CACHE_TTL = 600      # 10 minutes cache for case details
-ORDER_TTL = 900      # 15 minutes cache for clean order documents
-
+# Setup SSL & Cookie Processor
 cookie_jar = http.cookiejar.CookieJar()
 ssl_ctx = ssl._create_unverified_context()
 opener = urllib.request.build_opener(
@@ -21,15 +17,15 @@ opener = urllib.request.build_opener(
 )
 
 HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
     'Accept-Language': 'hi,en-US;q=0.9,en;q=0.8',
     'Connection': 'keep-alive',
     'Origin': 'https://vaad.up.nic.in',
     'Referer': 'https://vaad.up.nic.in/Search_CaseAutoNo.aspx'
 }
 
-# Pre-compiled Regexes for maximum speed
+# Regular expressions
 RE_VIEWSTATE = re.compile(r'id="__VIEWSTATE"\s+value="([^"]*)"')
 RE_EVENTVAL = re.compile(r'id="__EVENTVALIDATION"\s+value="([^"]*)"')
 RE_VSGEN = re.compile(r'id="__VIEWSTATEGENERATOR"\s+value="([^"]*)"')
@@ -44,6 +40,12 @@ RE_ORDERENTRY = re.compile(r'(\d{2}/\d{2}/\d{4})\b.*?login_type=(\w+).*?order_id
 RE_ORDERENTRY_NOLT = re.compile(r'(\d{2}/\d{2}/\d{4})\b.*?order_id=(\d+)', re.DOTALL)
 RE_SINGLE_ORDER = re.compile(r'login_type=(\w+)&order_id=(\d+)')
 RE_SINGLE_ORDER_NOLT = re.compile(r'order_id=(\d+)')
+
+# Memory Caches
+CASE_CACHE = {}
+ORDER_CACHE = {}
+CACHE_TTL = 1800
+ORDER_TTL = 3600
 
 
 def safe_encode_url(url_str):
@@ -75,8 +77,8 @@ def reformat_order_header_html(html_str):
     # 4. [Names] (वादी बनाम प्रतिवादी)
     # 5. कंप्यूटरीकृत वाद संख्या (Computerized Case No)
     # 6. अंतर्गत धारा (Act/Section)
-    # 7. "अंतिम आदेश" (Order Type)
-    # 8. आदेश तिथि (Order Date)
+    # 7. आदेश तिथि (Order Date)
+    # 8. अंतिम आदेश (Order Type without quotes)
     def replace_header_td(match):
         attrs = match.group(1)
         content = match.group(2)
@@ -111,7 +113,11 @@ def reformat_order_header_html(html_str):
             elif clean_sline.startswith('वाद संख्या'):
                 case_no_line = sline
             elif 'बनाम' in clean_sline:
-                parties_line = sline
+                parts = clean_sline.split('बनाम', 1)
+                vadi = parts[0].strip()
+                prativadi = parts[1].strip()
+                gap = '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'
+                parties_line = f"{vadi}{gap}बनाम{gap}{prativadi}"
             elif 'उत्तर प्रदेश राजस्व संहिता' in clean_sline or 'अंतर्गत धारा' in clean_sline:
                 act_sec_line = sline
             elif clean_sline.startswith('आदेश तिथि'):
@@ -255,7 +261,6 @@ def live_search_vaad_case(case_auto_no):
         gen_url = safe_encode_url(gen_raw_url)
         try:
             gen_html = opener.open(urllib.request.Request(gen_url, headers=HEADERS), timeout=4).read().decode('utf-8', errors='ignore')
-            # Try regex with login_type first
             order_entries = RE_ORDERENTRY.findall(gen_html)
             if order_entries:
                 for idx, (date_str, lt, oid) in enumerate(order_entries):
@@ -269,9 +274,7 @@ def live_search_vaad_case(case_auto_no):
                         "title": f"आदेश {idx + 1} (तिथि: {date_str})" + (" - अंतिम आदेश" if is_latest else "")
                     })
             else:
-                # Fallback: extract without login_type
                 order_entries_nolt = RE_ORDERENTRY_NOLT.findall(gen_html)
-                # Try to get ltype from gen_url
                 ltype_m = re.search(r'ltype=([^&]+)', gen_url)
                 default_lt = ltype_m.group(1) if ltype_m else "T"
                 for idx, (date_str, oid) in enumerate(order_entries_nolt):
@@ -330,7 +333,6 @@ def live_search_vaad_case(case_auto_no):
         "orders": orders_list
     }
 
-    # Store in high speed cache
     CASE_CACHE[case_auto_no] = (now, result_data)
     return result_data
 
@@ -363,11 +365,12 @@ class handler(BaseHTTPRequestHandler):
                     }, status=404)
                     return
             except Exception as ex:
-                self.send_json_response({"success": False, "error": f"Live error: {str(ex)}"}, status=500)
+                print("Live search exception:", ex)
+                self.send_json_response({"error": "vaad.up.nic.in सर्वर से लाइव डेटा प्राप्त करने में समस्या हुई।"}, status=500)
                 return
 
         if path.startswith("/api/fetch-order"):
-            order_id = query.get("order_id", [""])[0]
+            order_id = query.get("order_id", ["26930019"])[0]
             login_type = query.get("login_type", [""])[0] or ""
             remove_qr = query.get("remove_qr", ["true"])[0].lower() == "true"
             remove_disclaimer = query.get("remove_disclaimer", ["true"])[0].lower() == "true"
@@ -385,7 +388,6 @@ class handler(BaseHTTPRequestHandler):
                     return
 
             raw_html = ""
-            # Try login_types: use provided one first, then try the other as fallback
             types_to_try = [login_type] if login_type else ["T", "NT"]
             if login_type == "T":
                 types_to_try = ["T", "NT"]
@@ -398,11 +400,10 @@ class handler(BaseHTTPRequestHandler):
                     req = urllib.request.Request(target_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
                     with urllib.request.urlopen(req, context=ssl_ctx, timeout=6) as resp:
                         raw_html = resp.read().decode('utf-8', errors='ignore')
-                    # Check if it's the upload error page
                     if 'अपलोड नहीं किया गया' not in raw_html and 'अपलोड करें' not in raw_html:
-                        break  # Found the correct login_type!
-                except Exception as ex:
-                    raw_html = f"<h2>आदेश प्राप्त करने में समस्या: {str(ex)}</h2>"
+                        break
+                except Exception:
+                    raw_html = "<h2>आदेश प्राप्त करने में समस्या</h2>"
 
             final_html = clean_order_document(raw_html, remove_qr=remove_qr, remove_disclaimer=remove_disclaimer)
             ORDER_CACHE[cache_key] = (now, final_html)
