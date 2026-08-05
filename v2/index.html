@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>उत्तर प्रदेश राजस्व न्यायालय - स्वच्छ आदेश प्रिंटर एवं पीडीएफ पोर्टल (v2)</title>
-
+    <title>उत्तर प्रदेश राजस्व न्यायालय - स्वच्छ आदेश प्रिंटर एवं पीडीएफ पोर्टल</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Hind:wght@400;500;600;700&family=Mukta:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
@@ -13,10 +15,11 @@
         <div class="header-container">
             <div class="brand-box">
                 <div class="emblem-circle">
-                    <img src="up-emblem.png" alt="UP Emblem" class="up-emblem">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/fa/Seal_of_Uttar_Pradesh.svg/200px-Seal_of_Uttar_Pradesh.svg.png" alt="UP Emblem" class="up-emblem" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'><circle cx=\'50\' cy=\'50\' r=\'45\' fill=\'%23c0392b\'/><text x=\'50\' y=\'58\' font-size=\'30\' text-anchor=\'middle\' fill=\'white\'>UP</text></svg>'">
                 </div>
                 <div class="brand-text">
                     <h1>राजस्व न्यायालय कंप्यूटरीकृत प्रबंधन प्रणाली</h1>
+                    <h2>उत्तर प्रदेश (Live RCCMS Order Engine - No Barcode / No Disclaimer)</h2>
                 </div>
             </div>
             <div class="server-status-badge" id="serverStatus">
@@ -38,7 +41,7 @@
                 <div class="input-group">
                     <label for="caseAutoNo">कंप्यूटरीकृत वाद संख्या (Computerized Case No) <span class="required">*</span></label>
                     <div class="input-wrapper">
-                        <input type="text" id="caseAutoNo" placeholder="कंप्यूटरीकृत वाद संख्या दर्ज करें..." required autocomplete="off">
+                        <input type="text" id="caseAutoNo" placeholder="उदा. T202411270212200 या अन्य कोई वाद संख्या" value="T202411270212200" required autocomplete="off">
                         <button type="submit" class="btn btn-primary" id="searchBtn">
                             <span>प्रदर्शित करें (Search Live VAAD)</span>
                         </button>
@@ -63,7 +66,11 @@
                     <span class="toggle-label">🚫 नीचे से Disclaimer हटाएं (No Disclaimer)</span>
                 </div>
                 
-
+                <div class="sample-btn-box">
+                    <button type="button" class="btn btn-secondary btn-sm" id="loadSampleBtn">
+                        📌 उदाहरण वाद (T202411270212200)
+                    </button>
+                </div>
             </div>
         </section>
 
@@ -74,7 +81,7 @@
         </div>
 
         <!-- Case Summary Section -->
-        <section id="caseSummarySection" class="case-summary-card hidden">
+        <section id="caseSummarySection" class="case-summary-card">
             <div class="summary-header">
                 <div class="title-wrap">
                     <h3>वाद का विवरण एवं सभी आदेश (Case Details & Orders)</h3>
@@ -82,7 +89,7 @@
                 </div>
                 <div class="action-buttons">
                     <button class="btn btn-danger" id="printLatestDirectBtn">
-                        ⚡ अंतिम आदेश सीधे प्रिंट करें
+                        ⚡ पहला आदेश सीधे प्रिंट करें
                     </button>
                 </div>
             </div>
@@ -91,35 +98,35 @@
             <div class="details-grid">
                 <div class="detail-item">
                     <span class="detail-label">वाद सं०:</span>
-                    <span class="detail-value" id="valCaseNo">-</span>
+                    <span class="detail-value" id="valCaseNo">12200/2024</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">कंप्यूटरीकृत वाद सं०:</span>
-                    <span class="detail-value highlight" id="valComputerNo">-</span>
+                    <span class="detail-value highlight" id="valComputerNo">T202411270212200</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">मण्डल - जनपद - तहसील:</span>
-                    <span class="detail-value" id="valLocation">-</span>
+                    <span class="detail-value" id="valLocation">मेरठ - गौतम बुद्ध नगर - दादरी</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">न्यायालय:</span>
-                    <span class="detail-value" id="valCourt">-</span>
+                    <span class="detail-value" id="valCourt">तहसीलदार</span>
                 </div>
                 <div class="detail-item col-span-2">
                     <span class="detail-label">वादी / प्रतिवादी:</span>
-                    <span class="detail-value" id="valParties">-</span>
+                    <span class="detail-value" id="valParties">सुरेन्द्र सिंह बनाम यशवर्धन</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">दाखिल करने का दिनांक:</span>
-                    <span class="detail-value" id="valFilingDate">-</span>
+                    <span class="detail-value" id="valFilingDate">04-May-2024</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">निस्तारण दिनांक:</span>
-                    <span class="detail-value" id="valDisposalDate">-</span>
+                    <span class="detail-value" id="valDisposalDate">01-Jul-2024</span>
                 </div>
                 <div class="detail-item col-span-2">
                     <span class="detail-label">अधिनियम, धारा:</span>
-                    <span class="detail-value" id="valActSection">-</span>
+                    <span class="detail-value" id="valActSection">उत्तर प्रदेश राजस्व संहिता - 2006</span>
                 </div>
             </div>
 
@@ -161,7 +168,7 @@
     </main>
 
     <footer class="app-footer">
-        <p>सर्वाधिकार सुरक्षित © 2026 राजस्व न्यायालय कंप्यूटरीकृत प्रबंधन प्रणाली, उत्तर प्रदेश (v2)</p>
+        <p>सर्वाधिकार सुरक्षित © 2026 राजस्व न्यायालय कंप्यूटरीकृत प्रबंधन प्रणाली, उत्तर प्रदेश</p>
         <p class="sub-footer">Live Order Proxy Engine - No Barcode & No Disclaimer Print Generator.</p>
     </footer>
 

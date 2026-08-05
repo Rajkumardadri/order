@@ -29,6 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // App State
     let currentCaseData = null;
     let currentOrderId = null;
+    let currentLoginType = "NT";
     let removeSquareBarcode = true;
     let removeDisclaimer = true;
 
@@ -44,20 +45,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    if (loadSampleBtn) {
-        loadSampleBtn.addEventListener('click', () => {
-            caseAutoNoInput.value = 'T202411270212200';
-            performSearch('T202411270212200');
-        });
-    }
+    loadSampleBtn.addEventListener('click', () => {
+        caseAutoNoInput.value = 'T202411270212200';
+        performSearch('T202411270212200');
+    });
 
     removeQrToggle.addEventListener('change', (e) => {
         removeSquareBarcode = e.target.checked;
         updateStatusText();
         if (currentOrderId) {
-            const activeOrder = currentCaseData && currentCaseData.orders ? currentCaseData.orders.find(o => o.order_id === currentOrderId) : null;
-            const lt = activeOrder ? (activeOrder.login_type || 'T') : 'T';
-            fetchAndRenderOrder(currentOrderId, lt);
+            fetchAndRenderOrder(currentOrderId, currentLoginType);
         }
     });
 
@@ -65,9 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
         removeDisclaimer = e.target.checked;
         updateStatusText();
         if (currentOrderId) {
-            const activeOrder = currentCaseData && currentCaseData.orders ? currentCaseData.orders.find(o => o.order_id === currentOrderId) : null;
-            const lt = activeOrder ? (activeOrder.login_type || 'T') : 'T';
-            fetchAndRenderOrder(currentOrderId, lt);
+            fetchAndRenderOrder(currentOrderId, currentLoginType);
         }
     });
 
@@ -77,11 +72,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     printLatestDirectBtn.addEventListener('click', () => {
         if (currentCaseData && currentCaseData.orders && currentCaseData.orders.length > 0) {
-            const latest = currentCaseData.orders.find(o => o.is_latest) || currentCaseData.orders[currentCaseData.orders.length - 1];
-            selectOrder(latest.order_id);
+            const first = currentCaseData.orders[0];
+            selectOrder(first.order_id, first.login_type || "NT");
             setTimeout(() => {
                 triggerIframePrint();
-            }, 400);
+            }, 300);
         }
     });
 
@@ -89,7 +84,8 @@ document.addEventListener('DOMContentLoaded', () => {
         downloadCleanPdf();
     });
 
-// Auto load default case on startup (removed per user request)
+    // Auto load default case on startup
+    performSearch('T202411270212200');
 
     // Functions
     async function fetchServerStatus() {
@@ -98,7 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             if (data.status === 'online') {
                 const statusBadge = document.getElementById('serverStatus');
-                statusBadge.innerHTML = `<span class="status-dot online"></span><span class="status-text">वैध सर्वर (Live UP VAAD Connected)</span>`;
+                statusBadge.innerHTML = `<span class="status-dot online"></span><span class="status-text">स्मार्ट सर्वर (Smart Order Fetcher Ready)</span>`;
             }
         } catch (e) {
             console.warn('Server offline mode');
@@ -106,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function performSearch(caseNo) {
-        showLoader(true);
+        showLoader(true, `vaad.up.nic.in से वाद '${caseNo}' का संपूर्ण विवरण एवं आदेश खोजा जा रहा है...`);
         caseSummarySection.classList.add('hidden');
 
         try {
@@ -120,11 +116,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 caseSummarySection.classList.remove('hidden');
 
                 if (currentCaseData.orders && currentCaseData.orders.length > 0) {
-                    const latest = currentCaseData.orders.find(o => o.is_latest) || currentCaseData.orders[currentCaseData.orders.length - 1];
-                    selectOrder(latest.order_id);
+                    const first = currentCaseData.orders[0];
+                    selectOrder(first.order_id, first.login_type || "NT");
                 }
             } else {
-                alert(result.error || 'मामला नहीं मिला। कृपया कंप्यूटरीकृत वाद संख्या की जाँच करें।');
+                alert(result.error || `कंप्यूटरीकृत वाद संख्या '${caseNo}' सर्वर पर उपलब्ध नहीं है।`);
                 showLoader(false);
             }
         } catch (err) {
@@ -135,10 +131,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderCaseDetails(data) {
-        valCaseNo.textContent = data.case_no || '12200/2024';
+        valCaseNo.textContent = data.case_no || '';
         valComputerNo.textContent = data.computer_case_no || '';
-        valLocation.textContent = `${data.mandal || 'मेरठ'} - ${data.janpad || 'गौतम बुद्ध नगर'} - ${data.tehsil || 'दादरी'}`;
-        valCourt.textContent = data.nyayalaya || 'तहसीलदार';
+        valLocation.textContent = `${data.mandal || 'उत्तर प्रदेश'} - ${data.janpad || 'जनपद'} - ${data.tehsil || 'तहसील'}`;
+        valCourt.textContent = data.nyayalaya || 'तहसीलदार/नायब तहसीलदार';
         valParties.textContent = data.vadi_prativadi || '';
         valFilingDate.textContent = data.filing_date || '';
         valDisposalDate.textContent = data.disposal_date || '';
@@ -151,11 +147,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const tabBtn = document.createElement('button');
                 tabBtn.className = `order-tab-btn ${order.is_latest ? 'latest' : ''}`;
                 tabBtn.dataset.orderId = order.order_id;
+                tabBtn.dataset.loginType = order.login_type || "NT";
                 tabBtn.innerHTML = `
                     <span>📄 ${order.title}</span>
                     ${order.is_latest ? '<span class="latest-pill">अंतिम आदेश</span>' : ''}
                 `;
-                tabBtn.addEventListener('click', () => selectOrder(order.order_id));
+                tabBtn.addEventListener('click', () => selectOrder(order.order_id, order.login_type || "NT"));
                 ordersListTabs.appendChild(tabBtn);
             });
         } else {
@@ -163,8 +160,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function selectOrder(orderId) {
+    async function selectOrder(orderId, loginType = "NT") {
         currentOrderId = orderId;
+        currentLoginType = loginType;
         
         document.querySelectorAll('.order-tab-btn').forEach(btn => {
             if (btn.dataset.orderId === orderId) {
@@ -179,14 +177,12 @@ document.addEventListener('DOMContentLoaded', () => {
             activeOrderBadge.textContent = activeOrderObj.title;
         }
 
-        const loginType = activeOrderObj ? (activeOrderObj.login_type || 'T') : 'T';
         await fetchAndRenderOrder(orderId, loginType);
     }
 
-    async function fetchAndRenderOrder(orderId, loginType) {
+    async function fetchAndRenderOrder(orderId, loginType = "NT") {
         try {
-            const lt = loginType || 'T';
-            const url = `/api/fetch-order?order_id=${orderId}&login_type=${lt}&remove_qr=${removeSquareBarcode}&remove_disclaimer=${removeDisclaimer}`;
+            const url = `/api/fetch-order?order_id=${orderId}&login_type=${loginType}&remove_qr=${removeSquareBarcode}&remove_disclaimer=${removeDisclaimer}`;
             orderIframe.src = url;
             updateStatusText();
         } catch (err) {
@@ -200,7 +196,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (removeDisclaimer) msg.push('Disclaimer हटा');
 
         if (msg.length > 0) {
-            barcodeStatusText.innerHTML = `✅ ${msg.join(' और ')} हुआ स्वच्छ आदेश तैयार है`;
+            barcodeStatusText.innerHTML = `⚡ ${msg.join(' और ')} हुआ स्वच्छ असली आदेश तैयार है`;
             barcodeStatusText.style.color = '#2ecc71';
         } else {
             barcodeStatusText.innerHTML = `⚠️ ऑरिजनल NIC व्यू (विद बारकोड एवं Disclaimer)`;
@@ -236,8 +232,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function showLoader(show) {
+    function showLoader(show, message = 'आंकड़े प्राप्त हो रहे हैं...') {
         if (show) {
+            loader.querySelector('p').textContent = message;
             loader.classList.remove('hidden');
         } else {
             loader.classList.add('hidden');
