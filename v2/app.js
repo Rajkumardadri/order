@@ -160,23 +160,8 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const url = `/api/fetch-order?order_id=${orderId}&login_type=${loginType}&remove_qr=${removeSquareBarcode}&remove_disclaimer=${removeDisclaimer}`;
             orderIframe.src = url;
-            updateStatusText();
         } catch (err) {
             console.error('Error rendering order:', err);
-        }
-    }
-
-    function updateStatusText() {
-        let msg = [];
-        if (removeSquareBarcode) msg.push('स्क्वायर बारकोड हटा');
-        if (removeDisclaimer) msg.push('Disclaimer हटा');
-
-        if (msg.length > 0) {
-            barcodeStatusText.innerHTML = `⚡ ${msg.join(' और ')} हुआ स्वच्छ असली आदेश तैयार है`;
-            barcodeStatusText.style.color = '#2ecc71';
-        } else {
-            barcodeStatusText.innerHTML = `⚠️ ऑरिजनल NIC व्यू (विद बारकोड एवं Disclaimer)`;
-            barcodeStatusText.style.color = '#f39c12';
         }
     }
 

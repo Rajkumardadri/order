@@ -41,7 +41,7 @@
                 <div class="input-group">
                     <label for="caseAutoNo">कंप्यूटरीकृत वाद संख्या (Computerized Case No) <span class="required">*</span></label>
                     <div class="input-wrapper">
-                        <input type="text" id="caseAutoNo" placeholder="उदा. T202411270212200 या अन्य कोई वाद संख्या" value="T202411270212200" required autocomplete="off">
+                        <input type="text" id="caseAutoNo" placeholder="यहाँ कंप्यूटरीकृत वाद संख्या दर्ज करें (जैसे: T2026...)" value="" required autocomplete="off">
                         <button type="submit" class="btn btn-primary" id="searchBtn">
                             <span>प्रदर्शित करें (Search Live VAAD)</span>
                         </button>
@@ -57,11 +57,11 @@
         </div>
 
         <!-- Case Summary Section -->
-        <section id="caseSummarySection" class="case-summary-card">
+        <section id="caseSummarySection" class="case-summary-card hidden">
             <div class="summary-header">
                 <div class="title-wrap">
                     <h3>वाद का विवरण एवं सभी आदेश (Case Details & Orders)</h3>
-                    <span class="badge badge-success" id="caseStatusBadge">निस्तारित</span>
+                    <span class="badge badge-success" id="caseStatusBadge">-</span>
                 </div>
                 <div class="action-buttons">
                     <button class="btn btn-danger" id="printLatestDirectBtn">
@@ -74,35 +74,35 @@
             <div class="details-grid">
                 <div class="detail-item">
                     <span class="detail-label">वाद सं०:</span>
-                    <span class="detail-value" id="valCaseNo">12200/2024</span>
+                    <span class="detail-value" id="valCaseNo">-</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">कंप्यूटरीकृत वाद सं०:</span>
-                    <span class="detail-value highlight" id="valComputerNo">T202411270212200</span>
+                    <span class="detail-value highlight" id="valComputerNo">-</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">मण्डल - जनपद - तहसील:</span>
-                    <span class="detail-value" id="valLocation">मेरठ - गौतम बुद्ध नगर - दादरी</span>
+                    <span class="detail-value" id="valLocation">-</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">न्यायालय:</span>
-                    <span class="detail-value" id="valCourt">तहसीलदार</span>
+                    <span class="detail-value" id="valCourt">-</span>
                 </div>
                 <div class="detail-item col-span-2">
                     <span class="detail-label">वादी / प्रतिवादी:</span>
-                    <span class="detail-value" id="valParties">सुरेन्द्र सिंह बनाम यशवर्धन</span>
+                    <span class="detail-value" id="valParties">-</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">दाखिल करने का दिनांक:</span>
-                    <span class="detail-value" id="valFilingDate">04-May-2024</span>
+                    <span class="detail-value" id="valFilingDate">-</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">निस्तारण दिनांक:</span>
-                    <span class="detail-value" id="valDisposalDate">01-Jul-2024</span>
+                    <span class="detail-value" id="valDisposalDate">-</span>
                 </div>
                 <div class="detail-item col-span-2">
                     <span class="detail-label">अधिनियम, धारा:</span>
-                    <span class="detail-value" id="valActSection">उत्तर प्रदेश राजस्व संहिता - 2006</span>
+                    <span class="detail-value" id="valActSection">-</span>
                 </div>
             </div>
 
@@ -123,7 +123,6 @@
                 <div class="viewer-toolbar">
                     <div class="toolbar-title">
                         <span class="badge badge-info" id="activeOrderBadge">आदेश चुनें</span>
-                        <span class="barcode-status-indicator" id="barcodeStatusText">✅ स्क्वायर क्यूआर बारकोड एवं Disclaimer हटा दिया गया है</span>
                     </div>
                     
                     <div class="toolbar-actions">

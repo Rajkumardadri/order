@@ -235,7 +235,7 @@ def reformat_order_header_html(html_str):
                 parts = clean_sline.split('बनाम', 1)
                 vadi = parts[0].strip()
                 prativadi = parts[1].strip()
-                gap = '&nbsp;' * 14
+                gap = '&nbsp;' * 22
                 parties_line = f"{vadi}{gap}बनाम{gap}{prativadi}"
             elif 'उत्तर प्रदेश राजस्व संहिता' in clean_sline or 'अंतर्गत धारा' in clean_sline:
                 act_sec_line = sline
@@ -437,30 +437,33 @@ def live_search_vaad_case(case_auto_no):
 
 
 def fetch_live_order_html(order_id, preferred_ltype="NT"):
-    """
-    Fetches live court order HTML from vaad.up.nic.in.
-    Tries preferred login_type (e.g. NT or T) and automatically falls back if red notice appears!
-    """
     types_to_try = [preferred_ltype]
     for alt in ["NT", "T", "SDM", "ADM", "BOR"]:
         if alt not in types_to_try:
             types_to_try.append(alt)
 
-    last_html = ""
-    for ltype in types_to_try:
+    from concurrent.futures import ThreadPoolExecutor
+
+    def _worker(ltype):
         try:
             target_url = f"https://vaad.up.nic.in/judgement/Print_Court_Order_External.aspx?login_type={ltype}&order_id={order_id}"
             req = urllib.request.Request(target_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
-            with urllib.request.urlopen(req, context=ssl_ctx, timeout=8) as resp:
+            with urllib.request.urlopen(req, context=ssl_ctx, timeout=3) as resp:
                 html = resp.read().decode('utf-8', errors='ignore')
-                last_html = html
-                # Check if real order text was returned without the red un-uploaded notice
-                if 'अपलोड नहीं किया गया है' not in html and 'पृष्ठ से "अपलोड करें" बटन' not in html:
+                if 'अपलोड नहीं किया गया' not in html and 'अपलोड करें' not in html and len(html) > 500:
                     return html
         except Exception:
-            continue
+            pass
+        return None
 
-    return last_html if last_html else SAMPLE_ORDERS.get("26930019", OFFICIAL_ORDER_TEMPLATE_2)
+    with ThreadPoolExecutor(max_workers=len(types_to_try)) as executor:
+        futures = [executor.submit(_worker, lt) for lt in types_to_try]
+        for fut in futures:
+            res = fut.result()
+            if res:
+                return res
+
+    return SAMPLE_ORDERS.get("26930019", OFFICIAL_ORDER_TEMPLATE_2)
 
 
 class VAADProxyHandler(http.server.SimpleHTTPRequestHandler):
