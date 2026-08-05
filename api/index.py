@@ -105,9 +105,17 @@ def reformat_order_header_html(html_str):
             if 'पीठासीन अधिकारी का नाम' in clean_sline:
                 continue
             elif clean_sline.startswith('मण्डल') or 'जनपद' in clean_sline:
-                mandal_line = sline
+                m = re.search(r'मण्डल\s*:?\s*-?\s*([^,]+),\s*जनपद\s*:?\s*-?\s*([^,]+),\s*तहसील\s*:?\s*-?\s*(.*)', clean_sline)
+                if m:
+                    m_val = m.group(1).strip()
+                    j_val = m.group(2).strip()
+                    t_val = m.group(3).strip()
+                    mandal_line = f"मण्डल:- {m_val},जनपद:- {j_val},तहसील:- {t_val}"
+                else:
+                    mandal_line = clean_sline
             elif clean_sline.startswith('न्यायालय'):
-                court_line = sline
+                c_clean = re.sub(r'न्यायालय\s*:?\s*-?\s*', 'न्यायालय ', clean_sline)
+                court_line = re.sub(r'\s+', ' ', c_clean).strip()
             elif clean_sline.startswith('कम्प्यूटरीकृत वाद संख्या') or clean_sline.startswith('कंप्यूटरीकृत वाद संख्या'):
                 comp_no_line = sline
             elif clean_sline.startswith('वाद संख्या'):
