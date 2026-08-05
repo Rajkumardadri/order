@@ -124,7 +124,7 @@ def reformat_order_header_html(html_str):
                 parts = clean_sline.split('बनाम', 1)
                 vadi = parts[0].strip()
                 prativadi = parts[1].strip()
-                gap = '&nbsp;' * 14
+                gap = '&nbsp;' * 22
                 parties_line = f"{vadi}{gap}बनाम{gap}{prativadi}"
             elif 'उत्तर प्रदेश राजस्व संहिता' in clean_sline or 'अंतर्गत धारा' in clean_sline:
                 act_sec_line = sline
