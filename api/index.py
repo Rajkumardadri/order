@@ -402,16 +402,30 @@ class handler(BaseHTTPRequestHandler):
             elif login_type == "NT":
                 types_to_try = ["NT", "T"]
 
-            for lt in types_to_try:
+            from concurrent.futures import ThreadPoolExecutor
+
+            def _fetch_order_worker(lt):
+                target_url = f"https://vaad.up.nic.in/judgement/Print_Court_Order_External.aspx?login_type={lt}&order_id={order_id}"
+                req = urllib.request.Request(target_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
                 try:
-                    target_url = f"https://vaad.up.nic.in/judgement/Print_Court_Order_External.aspx?login_type={lt}&order_id={order_id}"
-                    req = urllib.request.Request(target_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
-                    with urllib.request.urlopen(req, context=ssl_ctx, timeout=6) as resp:
-                        raw_html = resp.read().decode('utf-8', errors='ignore')
-                    if 'अपलोड नहीं किया गया' not in raw_html and 'अपलोड करें' not in raw_html:
-                        break
+                    with urllib.request.urlopen(req, context=ssl_ctx, timeout=3) as resp:
+                        content = resp.read().decode('utf-8', errors='ignore')
+                        if 'अपलोड नहीं किया गया' not in content and 'अपलोड करें' not in content and len(content) > 500:
+                            return content
                 except Exception:
-                    raw_html = "<h2>आदेश प्राप्त करने में समस्या</h2>"
+                    pass
+                return None
+
+            with ThreadPoolExecutor(max_workers=len(types_to_try)) as executor:
+                futures = [executor.submit(_fetch_order_worker, lt) for lt in types_to_try]
+                for fut in futures:
+                    res = fut.result()
+                    if res:
+                        raw_html = res
+                        break
+
+            if not raw_html:
+                raw_html = "<h2>आदेश उपलब्ध नहीं है अथवा लोड नहीं हो सका।</h2>"
 
             final_html = clean_order_document(raw_html, remove_qr=remove_qr, remove_disclaimer=remove_disclaimer)
             ORDER_CACHE[cache_key] = (now, final_html)
