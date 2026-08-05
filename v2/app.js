@@ -45,27 +45,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    loadSampleBtn.addEventListener('click', () => {
-        caseAutoNoInput.value = 'T202411270212200';
-        performSearch('T202411270212200');
-    });
-
-    removeQrToggle.addEventListener('change', (e) => {
-        removeSquareBarcode = e.target.checked;
-        updateStatusText();
-        if (currentOrderId) {
-            fetchAndRenderOrder(currentOrderId, currentLoginType);
-        }
-    });
-
-    removeDisclaimerToggle.addEventListener('change', (e) => {
-        removeDisclaimer = e.target.checked;
-        updateStatusText();
-        if (currentOrderId) {
-            fetchAndRenderOrder(currentOrderId, currentLoginType);
-        }
-    });
-
     printCleanOrderBtn.addEventListener('click', () => {
         triggerIframePrint();
     });
@@ -83,9 +62,6 @@ document.addEventListener('DOMContentLoaded', () => {
     downloadPdfBtn.addEventListener('click', () => {
         downloadCleanPdf();
     });
-
-    // Auto load default case on startup
-    performSearch('T202411270212200');
 
     // Functions
     async function fetchServerStatus() {
