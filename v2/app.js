@@ -83,9 +83,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const response = await fetch(`/api/search?case_no=${encodeURIComponent(caseNo)}`);
-            const result = await response.json();
+            let result = null;
+            try {
+                result = await response.json();
+            } catch (parseErr) {
+                result = null;
+            }
 
-            if (result.success && result.data) {
+            if (result && result.success && result.data) {
                 currentCaseData = result.data;
                 renderCaseDetails(currentCaseData);
                 showLoader(false);
@@ -96,13 +101,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     selectOrder(first.order_id, first.login_type || "NT");
                 }
             } else {
-                alert(result.error || `कंप्यूटरीकृत वाद संख्या '${caseNo}' सर्वर पर उपलब्ध नहीं है।`);
+                const errMsg = (result && result.error) ? result.error : `कंप्यूटरीकृत वाद संख्या '${caseNo}' सर्वर पर उपलब्ध नहीं है अथवा लोड नहीं हो सकी।`;
                 showLoader(false);
+                alert(errMsg);
             }
         } catch (err) {
             console.error('Search error:', err);
             showLoader(false);
-            alert('सर्वर से संपर्क करने में त्रुटि हुई।');
+            alert('सरकारी सर्वर (vaad.up.nic.in) व्यस्त है या संपर्क नहीं हो सका। कृपया पुनः प्रयास करें।');
         }
     }
 
