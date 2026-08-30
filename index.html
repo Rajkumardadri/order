@@ -1,1466 +1,172 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="hi">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>QuestionBank - Missed Questions & Practice Hub</title>
-  <script>
-    (function() {
-      const theme = localStorage.getItem('qb_theme') || 'dark';
-      if (theme === 'light') {
-        document.documentElement.classList.remove('dark');
-      } else {
-        document.documentElement.classList.add('dark');
-      }
-    })();
-  </script>
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- FontAwesome Icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <!-- Chart.js for Reports -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- Tesseract.js for Image-to-Question OCR Parsing -->
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-
-  <!-- KaTeX Math Equation & Symbol Renderer -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js" onload="if(window.triggerKaTeXAutoRender) triggerKaTeXAutoRender();"></script>
-
-  <!-- PDF.js for Client-Side PDF Parsing -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <script>
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-  </script>
-
-  <!-- Firebase Compat SDKs (Direct Browser Support) -->
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            brand: {
-              50: '#eef2ff',
-              500: '#6366f1',
-              600: '#4f46e5',
-              700: '#4338ca',
-              900: '#312e81'
-            }
-          }
-        }
-      }
-    }
-  </script>
-  <style>
-    /* Glass Effect Containers */
-    .glass {
-      backdrop-filter: blur(12px);
-    }
-    
-    /* Dark Mode Glass */
-    html.dark .glass {
-      background: #121212;
-      border: 1px solid #27272a;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
-    }
-    
-    /* Light Mode Glass */
-    html:not(.dark) .glass {
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
-    }
-
-    .card-flip {
-      perspective: 1000px;
-    }
-    .card-inner {
-      transition: transform 0.6s;
-      transform-style: preserve-3d;
-    }
-    .card-inner.flipped {
-      transform: rotateY(180deg);
-    }
-    .card-front, .card-back {
-      backface-visibility: hidden;
-    }
-    .card-back {
-      transform: rotateY(180deg);
-    }
-
-    /* FULLSCREEN FOCUS MODE STYLING */
-    body.is-fullscreen-practice header,
-    body.is-fullscreen-practice #revision-alert-banner,
-    body.is-fullscreen-practice .practice-non-essential-header {
-      display: none !important;
-    }
-
-    body.is-fullscreen-practice #tab-practice {
-      position: fixed !important;
-      inset: 0 !important;
-      z-index: 9999 !important;
-      background: #000000 !important;
-      padding: 1.5rem !important;
-      overflow-y: auto !important;
-      max-width: 100% !important;
-      margin: 0 !important;
-    }
-
-    html:not(.dark) body.is-fullscreen-practice #tab-practice {
-      background: #f8fafc !important;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>उत्तर प्रदेश राजस्व न्यायालय - स्वच्छ आदेश प्रिंटर एवं पीडीएफ पोर्टल</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Hind:wght@400;500;600;700&family=Mukta:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
-<body class="bg-white text-slate-900 dark:bg-black dark:text-white min-h-screen flex flex-col font-sans antialiased transition-colors duration-300">
-
-  <!-- Navigation Bar (Full Wide Padding) -->
-  <header class="sticky top-0 z-50 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border-b border-slate-200 dark:border-zinc-800 px-4 lg:px-10 py-3 flex items-center justify-between">
-    <div class="flex items-center space-x-3 shrink-0">
-      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-        <i class="fa-solid fa-brain text-white text-xl"></i>
-      </div>
-      <div>
-        <h1 class="font-extrabold text-lg tracking-tight text-slate-900 dark:text-white flex items-center space-x-1.5">
-          <span>QuestionBank Hub</span>
-        </h1>
-        <p class="text-xs font-semibold text-slate-600 dark:text-slate-400">Sync • Practice • Auto Decks</p>
-      </div>
-
-      <!-- D-DAY COUNTDOWN TIMER WIDGET -->
-      <div onclick="openDDaySetupModal()" class="cursor-pointer ml-3 px-3 py-1.5 rounded-xl bg-amber-50/80 dark:bg-amber-950/30 hover:bg-amber-100 dark:hover:bg-amber-900/40 border border-amber-300 dark:border-amber-500/40 transition flex items-center space-x-2 shadow-sm group" title="Click to edit D-Day Exam Target & Date">
-        <div class="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xs font-bold shrink-0">
-          <i class="fa-solid fa-flag-checkered animate-pulse"></i>
-        </div>
-        <div class="text-left">
-          <div class="text-[10px] font-black uppercase text-amber-700 dark:text-amber-400 flex items-center space-x-1" id="dday-exam-label">
-            <span>🎯 D-Day Exam Target</span>
-            <i class="fa-solid fa-pen text-[9px] opacity-70 group-hover:opacity-100"></i>
-          </div>
-          <div class="text-xs font-mono font-black text-slate-900 dark:text-white tracking-wide" id="dday-timer-display">
-            ⏳ 75d 00h 00m 00s
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Navigation Tabs -->
-    <nav class="hidden md:flex items-center space-x-1.5 bg-slate-100 dark:bg-zinc-900 p-1.5 rounded-xl border border-slate-200 dark:border-zinc-800">
-      <button onclick="switchTab('dashboard')" id="nav-dashboard" class="px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center space-x-2 text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-950/80 border border-indigo-200 dark:border-indigo-800/40">
-        <i class="fa-solid fa-chart-pie"></i>
-        <span>Dashboard</span>
-      </button>
-      <button onclick="switchTab('practice')" id="nav-practice" class="px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center space-x-2 text-slate-700 dark:text-slate-300 hover:text-black dark:hover:text-white">
-        <i class="fa-solid fa-circle-play"></i>
-        <span>MCQ Practice</span>
-      </button>
-      <button onclick="switchTab('pdf')" id="nav-pdf" class="px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center space-x-2 text-slate-700 dark:text-slate-300 hover:text-black dark:hover:text-white">
-        <i class="fa-solid fa-file-pdf"></i>
-        <span>PDF Extractor</span>
-      </button>
-      <button onclick="switchTab('decks')" id="nav-decks" class="px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center space-x-2 text-slate-700 dark:text-slate-300 hover:text-black dark:hover:text-white">
-        <i class="fa-solid fa-layer-group"></i>
-        <span>Study Decks</span>
-      </button>
-      <button onclick="switchTab('topics')" id="nav-topics" class="px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center space-x-2 text-slate-700 dark:text-slate-300 hover:text-black dark:hover:text-white">
-        <i class="fa-solid fa-folder-open text-amber-500"></i>
-        <span>Topics Manager</span>
-      </button>
-    </nav>
-
-    <!-- Header Right Quick Actions -->
-    <div class="flex items-center space-x-3 shrink-0">
-      <!-- Dark / Light Theme Toggle -->
-      <button onclick="toggleTheme()" id="theme-toggle-btn" class="p-2.5 rounded-xl bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 transition flex items-center space-x-1.5" title="Toggle Dark/Light Theme">
-        <i class="fa-solid fa-moon text-indigo-500" id="theme-icon"></i>
-        <span class="text-xs font-extrabold hidden sm:inline" id="theme-label">Dark</span>
-      </button>
-
-      <button onclick="openConfigModal()" class="p-2.5 rounded-xl bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-900 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 transition" title="Settings & Recycle Bin">
-        <i class="fa-solid fa-gear"></i>
-      </button>
-      <button onclick="openTestSetupModal()" class="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 px-4 py-2 rounded-xl text-sm font-black shadow-lg shadow-amber-500/20 flex items-center space-x-2 transition">
-        <i class="fa-solid fa-bullseye"></i>
-        <span>🎯 Timed Test</span>
-      </button>
-    </div>
-  </header>
-
-  <!-- Ultra-Wide Main Content Container (98% screen width limit max 1800px) -->
-  <main class="flex-1 max-w-[98%] xl:max-w-[1800px] w-full mx-auto p-4 lg:p-6 space-y-6">
-
-    <!-- AUTOMATED REVISION REMINDER BANNER -->
-    <div id="revision-alert-banner" class="hidden glass p-4 rounded-2xl border-2 border-amber-500/50 bg-amber-50 dark:bg-amber-950/40 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-      <div class="flex items-center space-x-3">
-        <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-600 dark:text-amber-400 text-xl font-bold shrink-0">
-          <i class="fa-solid fa-bell animate-bounce"></i>
-        </div>
-        <div>
-          <h3 class="font-extrabold text-sm text-slate-900 dark:text-white flex items-center space-x-2">
-            <span>🧠 Revision Reminder Alert</span>
-            <span class="bg-amber-500 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-full uppercase">Action Required</span>
-          </h3>
-          <p class="text-xs text-slate-700 dark:text-slate-300 font-semibold mt-0.5" id="alert-message">
-            It's been a while since you last reviewed your missed questions. Time for a quick revision session!
-          </p>
-        </div>
-      </div>
-
-      <div class="flex items-center space-x-2 w-full md:w-auto">
-        <button onclick="startAlertRevision()" class="flex-1 md:flex-initial bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-4 py-2 rounded-xl text-xs shadow-lg transition flex items-center justify-center space-x-1.5">
-          <i class="fa-solid fa-bolt"></i>
-          <span>Revise Due Topics Now</span>
-        </button>
-        <button onclick="dismissAlertBanner()" class="text-slate-500 dark:text-slate-400 hover:text-black dark:hover:text-white p-2 text-xs font-bold">Dismiss</button>
-      </div>
-    </div>
-
-    <!-- 1. DASHBOARD & DAILY REPORT TAB -->
-    <section id="tab-dashboard" class="space-y-6">
-      <!-- Extended 6-Card Dashboard Statistics Grid (Strictly User Attempt Based) -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        <!-- 1. Total Questions Saved -->
-        <div class="glass p-5 rounded-2xl space-y-2 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800">
-          <div class="flex items-center justify-between">
-            <span class="text-[11px] uppercase font-extrabold tracking-wider text-slate-600 dark:text-slate-400">Total Saved</span>
-            <i class="fa-solid fa-database text-indigo-600 dark:text-indigo-400"></i>
-          </div>
-          <div class="text-3xl font-black text-slate-900 dark:text-white" id="stat-total">0</div>
-          <p class="text-[11px] font-semibold text-slate-500 dark:text-slate-400">In QuestionBank</p>
-        </div>
-
-        <!-- 2. Real User Attempts Count -->
-        <div class="glass p-5 rounded-2xl border border-indigo-200 dark:border-indigo-500/30 bg-indigo-50/70 dark:bg-indigo-950/20 space-y-2">
-          <div class="flex items-center justify-between text-indigo-700 dark:text-indigo-400">
-            <span class="text-[11px] uppercase font-extrabold tracking-wider">Total Attempts</span>
-            <i class="fa-solid fa-gamepad"></i>
-          </div>
-          <div class="text-3xl font-black text-indigo-700 dark:text-indigo-400" id="stat-attempted-total">0</div>
-          <p class="text-[11px] font-semibold text-indigo-800 dark:text-indigo-400/80">User solved attempts</p>
-        </div>
-
-        <!-- 3. Solved / Mastered Questions -->
-        <div class="glass p-5 rounded-2xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50/70 dark:bg-emerald-950/20 space-y-2">
-          <div class="flex items-center justify-between text-emerald-700 dark:text-emerald-400">
-            <span class="text-[11px] uppercase font-extrabold tracking-wider">Mastered</span>
-            <i class="fa-solid fa-circle-check"></i>
-          </div>
-          <div class="text-3xl font-black text-emerald-700 dark:text-emerald-400" id="stat-solved">0</div>
-          <p class="text-[11px] font-semibold text-emerald-800 dark:text-emerald-400/80">Correct answers</p>
-        </div>
-
-        <!-- 4. Needs Revision -->
-        <div class="glass p-5 rounded-2xl border border-rose-200 dark:border-rose-500/30 bg-rose-50/70 dark:bg-rose-950/20 space-y-2">
-          <div class="flex items-center justify-between text-rose-700 dark:text-rose-400">
-            <span class="text-[11px] uppercase font-extrabold tracking-wider">Re-study</span>
-            <i class="fa-solid fa-triangle-exclamation"></i>
-          </div>
-          <div class="text-3xl font-black text-rose-700 dark:text-rose-400" id="stat-revision">0</div>
-          <p class="text-[11px] font-semibold text-rose-800 dark:text-rose-400/80">Wrong / Needs work</p>
-        </div>
-
-        <!-- 5. Overall Attempt Accuracy Rate -->
-        <div class="glass p-5 rounded-2xl border border-violet-200 dark:border-violet-500/30 bg-violet-50/70 dark:bg-violet-950/20 space-y-2">
-          <div class="flex items-center justify-between text-violet-700 dark:text-violet-400">
-            <span class="text-[11px] uppercase font-extrabold tracking-wider">Accuracy Rate</span>
-            <i class="fa-solid fa-bullseye"></i>
-          </div>
-          <div class="text-3xl font-black text-violet-700 dark:text-violet-400" id="stat-accuracy">0%</div>
-          <p class="text-[11px] font-semibold text-violet-800 dark:text-violet-400/80" id="stat-attempted-sub">0 Attempted</p>
-        </div>
-
-        <!-- 6. Repeated Mistakes / Danger Zone Questions -->
-        <div class="glass p-5 rounded-2xl border border-rose-300 dark:border-rose-600/40 bg-rose-100/80 dark:bg-rose-950/30 space-y-2">
-          <div class="flex items-center justify-between text-rose-700 dark:text-rose-400">
-            <span class="text-[11px] uppercase font-black tracking-wider">Danger Zone</span>
-            <i class="fa-solid fa-fire animate-pulse text-amber-500"></i>
-          </div>
-          <div class="text-3xl font-black text-rose-700 dark:text-rose-400" id="stat-danger-count">0</div>
-          <p class="text-[11px] font-bold text-rose-800 dark:text-rose-300">Repeated mistakes</p>
-        </div>
-      </div>
-
-      <!-- WEEKLY QUESTION ACTIVITY & MASTERY PROGRESS CARD -->
-      <div class="glass p-6 rounded-3xl bg-slate-50 dark:bg-zinc-900/90 border border-slate-200 dark:border-zinc-800 shadow-xl space-y-4 text-left transition-colors">
-        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-slate-200 dark:border-zinc-800 pb-3">
-          <div class="flex items-center space-x-3">
-            <div class="w-10 h-10 rounded-2xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/40 flex items-center justify-center text-xl font-bold">
-              <i class="fa-solid fa-calendar-week"></i>
+<body>
+    <header class="app-header">
+        <div class="header-container">
+            <div class="brand-box">
+                <div class="emblem-circle">
+                    <img src="up-emblem.png" alt="UP Emblem" class="up-emblem">
+                </div>
+                <div class="brand-text">
+                    <h1>राजस्व न्यायालय कंप्यूटरीकृत प्रबंधन प्रणाली</h1>
+                </div>
             </div>
-            <div>
-              <h3 class="font-extrabold text-base text-slate-900 dark:text-white flex items-center space-x-2">
-                <span>📅 This Week's Question Activity & Mastery</span>
-                <span class="bg-indigo-600 text-white font-black text-[10px] px-2.5 py-0.5 rounded-full uppercase">Last 7 Days</span>
-              </h3>
-              <p class="text-xs text-slate-600 dark:text-slate-400 font-semibold mt-0.5">Tracking questions added this week and how many you know vs don't know yet</p>
+            <div class="server-status-badge" id="serverStatus">
+                <span class="status-dot online"></span>
+                <span class="status-text">वैध लाइव सर्वर (Connected to vaad.up.nic.in)</span>
             </div>
-          </div>
-          <div class="text-left sm:text-right">
-            <span class="text-xs font-bold text-slate-600 dark:text-slate-400">Weekly Mastery Rate</span>
-            <div class="text-2xl font-black text-emerald-600 dark:text-emerald-400 font-mono" id="weekly-mastery-rate">0%</div>
-          </div>
         </div>
+    </header>
 
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-          <!-- Added This Week -->
-          <div class="p-4 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/40 shadow-sm">
-            <div class="text-xs font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-wider">➕ Added This Week</div>
-            <div class="text-3xl font-mono font-black text-indigo-600 dark:text-indigo-400 mt-1" id="weekly-added-count">0</div>
-            <p class="text-[11px] text-indigo-800/80 dark:text-indigo-300/70 font-semibold mt-1">Questions created in last 7d</p>
-          </div>
-
-          <!-- Mastered / Known -->
-          <div class="p-4 rounded-2xl bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/40 shadow-sm">
-            <div class="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">✅ Pata Hai (Mastered)</div>
-            <div class="text-3xl font-mono font-black text-emerald-600 dark:text-emerald-400 mt-1" id="weekly-known-count">0</div>
-            <p class="text-[11px] text-emerald-800/80 dark:text-emerald-300/70 font-semibold mt-1">Solved & confident</p>
-          </div>
-
-          <!-- Struggling / Don't Know Yet -->
-          <div class="p-4 rounded-2xl bg-rose-50/80 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/40 shadow-sm">
-            <div class="text-xs font-black text-rose-700 dark:text-rose-400 uppercase tracking-wider">❌ Nahi Pata (Needs Work)</div>
-            <div class="text-3xl font-mono font-black text-rose-600 dark:text-rose-400 mt-1" id="weekly-unknown-count">0</div>
-            <p class="text-[11px] text-rose-800/80 dark:text-rose-300/70 font-semibold mt-1">Pending / Needs revision</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- DEDICATED HOURLY HIGH-MISTAKE SPOTLIGHT BOX (FIXED HIGH-CONTRAST COLORS) -->
-      <div id="hourly-mistake-container" class="glass p-6 rounded-2xl border-2 border-rose-500/40 bg-white dark:bg-zinc-950 space-y-4 shadow-xl">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-zinc-800 pb-4">
-          <div class="flex items-center space-x-3">
-            <div class="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-600 dark:text-rose-400 text-2xl shrink-0">
-              <i class="fa-solid fa-triangle-exclamation animate-pulse"></i>
+    <main class="main-content">
+        <!-- Search Section -->
+        <section class="search-card">
+            <div class="card-header">
+                <span class="icon">🔍</span>
+                <h3>कंप्यूटरीकृत वाद संख्या से खोजें (Search Any UP VAAD Case)</h3>
             </div>
-            <div>
-              <h2 class="font-black text-lg text-slate-900 dark:text-white flex items-center space-x-2">
-                <span>🚨 Hourly High-Mistake Focus Spotlight</span>
-                <span class="bg-rose-600 text-white font-black text-[10px] px-2.5 py-0.5 rounded-full uppercase tracking-wider">1-Hour Refresh</span>
-              </h2>
-              <p class="text-xs text-slate-600 dark:text-slate-300 font-semibold mt-0.5">
-                Every hour, 1 question that you have repeatedly gotten wrong is spotlighted so you can conquer your weak spots!
-              </p>
+            
+            <form id="searchForm" class="search-form">
+                <div class="input-group">
+                    <label for="caseAutoNo">कंप्यूटरीकृत वाद संख्या (Computerized Case No) <span class="required">*</span></label>
+                    <div class="input-wrapper">
+                        <input type="text" id="caseAutoNo" placeholder="कंप्यूटरीकृत वाद संख्या दर्ज करें..." required autocomplete="off">
+                        <button type="submit" class="btn btn-primary" id="searchBtn">
+                            <span>प्रदर्शित करें (Search Live VAAD)</span>
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <div class="quick-options">
+                <div class="filter-toggle">
+                    <label class="switch">
+                        <input type="checkbox" id="removeQrToggle" checked>
+                        <span class="slider round"></span>
+                    </label>
+                    <span class="toggle-label">✨ स्क्वायर क्यूआर बारकोड हटाएं (No QR Code)</span>
+                </div>
+
+                <div class="filter-toggle">
+                    <label class="switch">
+                        <input type="checkbox" id="removeDisclaimerToggle" checked>
+                        <span class="slider round"></span>
+                    </label>
+                    <span class="toggle-label">🚫 नीचे से Disclaimer हटाएं (No Disclaimer)</span>
+                </div>
+                
+
             </div>
-          </div>
+        </section>
 
-          <!-- Hourly Countdown Timer Badge -->
-          <div class="bg-slate-100 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-800 px-4 py-2 rounded-xl flex items-center space-x-2 shrink-0">
-            <i class="fa-solid fa-clock text-amber-500"></i>
-            <div>
-              <div class="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400">Next Question In</div>
-              <div class="text-sm font-mono font-black text-indigo-600 dark:text-amber-400" id="hourly-timer-countdown">00m 00s</div>
-            </div>
-          </div>
+        <!-- Loader -->
+        <div id="loader" class="loader-box hidden">
+            <div class="spinner"></div>
+            <p>vaad.up.nic.in से लाइव वाद एवं सभी आदेश प्राप्त हो रहे हैं, कृपया प्रतीक्षा करें...</p>
         </div>
 
-        <!-- Rendered Hourly Challenge Card Content -->
-        <div id="hourly-mistake-card" class="space-y-4">
-          <!-- Rendered via JS -->
-        </div>
-      </div>
-
-      <!-- SPICED REPETITION (SRS SM-2) SMART MEMORY SCHEDULE WIDGET -->
-      <div class="glass p-6 rounded-2xl space-y-4 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-zinc-800 pb-4">
-          <div class="flex items-center space-x-3">
-            <div class="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xl shrink-0">
-              <i class="fa-solid fa-brain"></i>
-            </div>
-            <div>
-              <h2 class="font-black text-lg text-slate-900 dark:text-white flex items-center space-x-2">
-                <span>🧠 Scientific Spaced Repetition (SRS Memory Schedule)</span>
-                <span class="bg-indigo-600 text-white font-black text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider">SM-2 Algorithm</span>
-              </h2>
-              <p class="text-xs text-slate-600 dark:text-slate-400 font-semibold mt-0.5">
-                Automatically calculates the optimal revision date for every question based on your retention curve so you never forget!
-              </p>
-            </div>
-          </div>
-
-          <button onclick="startSRSPracticeSession()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl font-extrabold text-xs transition shadow-lg shadow-indigo-600/30 flex items-center space-x-2 shrink-0">
-            <i class="fa-solid fa-bolt"></i>
-            <span>Start SRS Review Session Today</span>
-          </button>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-1" id="srs-schedule-forecast">
-          <!-- Rendered via JS -->
-        </div>
-      </div>
-
-      <!-- SUBJECT & TOPIC REVISION PROGRESS ANALYTICS TRACKER -->
-      <div class="glass p-6 rounded-2xl space-y-4 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800">
-        <div>
-          <h2 class="font-extrabold text-lg flex items-center space-x-2 text-slate-900 dark:text-white">
-            <i class="fa-solid fa-chart-pie text-indigo-500"></i>
-            <span>Subject & Topic Revision Analytics</span>
-          </h2>
-          <p class="text-xs font-semibold text-slate-600 dark:text-slate-400">Track your revision mastery score and due revision topics in real-time</p>
-        </div>
-
-        <div id="revision-stats-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
-          <!-- Rendered via JS -->
-        </div>
-      </div>
-
-      <!-- QUESTION BANK PREPARATION & SUBJECT MASTERY RADAR -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- 1. Subject-Wise Question & Accuracy Bar Chart -->
-        <div class="lg:col-span-2 glass p-6 rounded-2xl space-y-4 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800">
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h2 class="font-black text-lg flex items-center space-x-2 text-slate-900 dark:text-white">
-                <i class="fa-solid fa-chart-column text-indigo-500"></i>
-                <span id="chart-title-text">Subject-Wise Breakdown & Mastery Progress</span>
-              </h2>
-              <p class="text-xs text-slate-600 dark:text-slate-400 font-semibold mt-0.5" id="chart-subtitle-text">
-                Select a subject to view topic-level breakdown or view overall subject comparison
-              </p>
+        <!-- Case Summary Section -->
+        <section id="caseSummarySection" class="case-summary-card hidden">
+            <div class="summary-header">
+                <div class="title-wrap">
+                    <h3>वाद का विवरण एवं सभी आदेश (Case Details & Orders)</h3>
+                    <span class="badge badge-success" id="caseStatusBadge">निस्तारित</span>
+                </div>
+                <div class="action-buttons">
+                    <button class="btn btn-danger" id="printLatestDirectBtn">
+                        ⚡ अंतिम आदेश सीधे प्रिंट करें
+                    </button>
+                </div>
             </div>
 
-            <div class="flex items-center space-x-2">
-              <select id="chart-subject-filter" onchange="initSubjectBreakdownChart()" class="bg-white dark:bg-zinc-950 border border-slate-300 dark:border-indigo-500/50 text-xs rounded-xl p-2 text-slate-900 dark:text-indigo-400 font-bold focus:outline-none">
-                <option value="all">📁 All Subjects</option>
-              </select>
-              <span class="text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-200 dark:bg-zinc-800 px-2.5 py-1 rounded-full border border-slate-300 dark:border-zinc-700 shrink-0">Live</span>
-            </div>
-          </div>
-
-          <div class="h-64 relative">
-            <canvas id="subjectBreakdownChart"></canvas>
-          </div>
-        </div>
-
-        <!-- 2. Overall Bank Preparation Donut Chart & Key Insights -->
-        <div class="glass p-6 rounded-2xl space-y-4 flex flex-col justify-between bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800">
-          <div>
-            <h2 class="font-black text-lg flex items-center space-x-2 mb-1 text-slate-900 dark:text-white">
-              <i class="fa-solid fa-chart-donut text-emerald-500"></i>
-              <span>Overall Bank Mastery</span>
-            </h2>
-            <p class="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-3">Overall completion percentage</p>
-
-            <div class="h-44 relative flex items-center justify-center">
-              <canvas id="overallDonutChart"></canvas>
-            </div>
-
-            <div class="space-y-2 pt-3 border-t border-slate-200 dark:border-zinc-800 text-xs">
-              <div class="flex justify-between items-center bg-white dark:bg-zinc-950 p-2.5 rounded-xl border border-slate-200 dark:border-zinc-800">
-                <span class="font-bold text-slate-700 dark:text-slate-300 flex items-center space-x-1.5">
-                  <i class="fa-solid fa-trophy text-amber-500"></i>
-                  <span>Strongest Subject:</span>
-                </span>
-                <span class="font-black text-emerald-600 dark:text-emerald-400" id="insight-strongest-subject">Maths</span>
-              </div>
-              <div class="flex justify-between items-center bg-white dark:bg-zinc-950 p-2.5 rounded-xl border border-slate-200 dark:border-zinc-800">
-                <span class="font-bold text-slate-700 dark:text-slate-300 flex items-center space-x-1.5">
-                  <i class="fa-solid fa-triangle-exclamation text-rose-500"></i>
-                  <span>Needs Revision:</span>
-                </span>
-                <span class="font-black text-rose-600 dark:text-rose-400" id="insight-weakest-subject">Fluid Mechanics</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="pt-3 border-t border-slate-200 dark:border-zinc-800">
-            <button onclick="switchTab('practice')" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-extrabold text-xs flex items-center justify-center space-x-2 transition shadow-lg shadow-indigo-600/30">
-              <i class="fa-solid fa-play"></i>
-              <span>Start Practice Session Now</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- 2. MCQ PRACTICE TAB (WITH 3 SUB-OPTION VIEW MODES) -->
-    <section id="tab-practice" class="hidden space-y-6">
-      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 glass p-4 rounded-2xl bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 practice-non-essential-header">
-        <div class="flex items-center space-x-3">
-          <div>
-            <h2 class="font-black text-xl text-slate-900 dark:text-white">MCQ Practice Arena</h2>
-            <p class="text-xs font-semibold text-slate-600 dark:text-slate-400">Testbook-style interactive test solving mode</p>
-          </div>
-        </div>
-
-        <!-- Sub-Option Segmented Toggle Bar with 3 View Modes + Fullscreen Button -->
-        <div class="flex flex-wrap items-center gap-3">
-          <!-- Fullscreen Focus Mode Button -->
-          <button onclick="toggleFullscreenPractice()" id="btn-fullscreen-toggle" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition flex items-center space-x-1.5 shadow-md">
-            <i class="fa-solid fa-expand" id="fullscreen-icon"></i>
-            <span id="fullscreen-text">🖥️ Full Screen Mode</span>
-          </button>
-
-          <!-- 3 Sub-Option View Modes -->
-          <div class="flex items-center bg-slate-200 dark:bg-zinc-950 p-1 rounded-xl border border-slate-300 dark:border-zinc-800">
-            <button onclick="togglePracticeViewMode('cards')" id="btn-view-cards" class="px-3 py-1.5 rounded-lg text-xs font-black transition-all flex items-center space-x-1.5 bg-indigo-600 text-white shadow-sm">
-              <i class="fa-solid fa-file-signature"></i>
-              <span>🎯 Single Question Mode</span>
-            </button>
-            <button onclick="togglePracticeViewMode('vertical')" id="btn-view-vertical" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 text-slate-700 dark:text-slate-300 hover:text-black dark:hover:text-white">
-              <i class="fa-solid fa-list-ol text-amber-500"></i>
-              <span>📜 Vertical Questions List</span>
-            </button>
-            <button onclick="togglePracticeViewMode('table')" id="btn-view-table" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 text-slate-700 dark:text-slate-300 hover:text-black dark:hover:text-white">
-              <i class="fa-solid fa-table-list text-indigo-500"></i>
-              <span>📋 View All Questions Table</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Filter Controls -->
-        <div class="flex flex-wrap items-center gap-3">
-          <select id="practice-filter-subject" onchange="onSubjectDropdownChange()" class="bg-white dark:bg-zinc-950 border border-slate-300 dark:border-indigo-500/50 text-xs rounded-xl p-2.5 text-slate-900 dark:text-indigo-400 font-bold">
-            <option value="all">📁 All Subjects</option>
-          </select>
-
-          <select id="practice-filter-topic" onchange="loadPracticeQuestions()" class="bg-white dark:bg-zinc-950 border border-slate-300 dark:border-indigo-500/50 text-xs rounded-xl p-2.5 text-slate-900 dark:text-indigo-400 font-bold">
-            <option value="all">📂 All Topics</option>
-          </select>
-
-          <select id="practice-filter-status" onchange="loadPracticeQuestions()" class="bg-white dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 text-xs font-bold text-slate-900 dark:text-slate-200 rounded-xl p-2.5">
-            <option value="srs_due">Show: 🧠 Due for Spaced Repetition Today</option>
-            <option value="pending">Show: Pending Questions</option>
-            <option value="needs_revision">Show: Needs Revision</option>
-            <option value="all">Show: All Questions</option>
-          </select>
-
-          <select id="practice-filter-source" onchange="loadPracticeQuestions()" class="bg-white dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 text-xs font-bold text-slate-900 dark:text-slate-200 rounded-xl p-2.5">
-            <option value="all">All Sources</option>
-            <option value="testbook">Testbook Scraped</option>
-            <option value="pdf">PDF Upload</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- LIVE MOCK TEST COUNTDOWN TIMER & CONTROL BANNER -->
-      <div id="test-live-timer-banner" class="hidden p-4 rounded-2xl bg-gradient-to-r from-slate-900 to-zinc-900 text-white border border-amber-500/50 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div class="flex items-center space-x-3">
-          <div class="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black text-lg shadow-lg">
-            <i class="fa-solid fa-stopwatch animate-pulse"></i>
-          </div>
-          <div>
-            <div class="flex items-center space-x-2">
-              <span class="font-black text-sm text-amber-400" id="test-banner-title">🎯 Custom Timed Mock Exam</span>
-              <span class="bg-amber-500/20 text-amber-400 border border-amber-500/40 text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase" id="test-banner-subject">Maths</span>
-            </div>
-            <p class="text-xs text-slate-400 font-semibold" id="test-banner-progress">Question 1 of 30 • Weakness Focus Priority</p>
-          </div>
-        </div>
-
-        <div class="flex items-center space-x-4">
-          <div class="text-center bg-zinc-950 px-4 py-2 rounded-xl border border-zinc-800">
-            <div class="text-xs text-slate-400 font-bold uppercase text-[9px] tracking-wider">Time Remaining</div>
-            <div class="text-xl font-mono font-black text-amber-400" id="test-live-countdown">29:59</div>
-          </div>
-
-          <button onclick="submitMockTest()" class="bg-rose-600 hover:bg-rose-500 text-white px-5 py-2.5 rounded-xl text-xs font-black transition shadow-lg shadow-rose-600/30 flex items-center space-x-1.5">
-            <i class="fa-solid fa-flag-checkered"></i>
-            <span>Submit Test</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- VIEW 1: SINGLE QUESTION ARENA MODE WITH PALETTE GRID -->
-      <div id="quiz-card-container">
-        <!-- Rendered dynamically via JS -->
-      </div>
-
-      <!-- VIEW 2: VERTICAL ALL QUESTIONS SCROLLING CARDS LIST MODE -->
-      <div id="practice-vertical-container" class="hidden space-y-6">
-        <!-- Rendered dynamically via JS -->
-      </div>
-
-      <!-- VIEW 3: INTEGRATED ALL QUESTIONS BANK TABLE -->
-      <div id="practice-table-container" class="hidden glass p-6 rounded-2xl space-y-4 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h3 class="font-extrabold text-xl flex items-center space-x-2 text-slate-900 dark:text-white">
-              <i class="fa-solid fa-list-check text-indigo-500"></i>
-              <span>All Missed Questions Bank Table</span>
-            </h3>
-            <p class="text-xs font-semibold text-slate-600 dark:text-slate-400">View, search, edit, move, or clear all saved questions in your database</p>
-          </div>
-          
-          <div class="flex items-center space-x-3">
-            <input type="text" id="questions-table-search" onkeyup="renderQuestionsTable()" placeholder="🔍 Search questions..." class="p-2.5 bg-white dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-xl text-xs text-slate-900 dark:text-white font-bold focus:outline-none focus:border-indigo-500 w-64">
-            <button onclick="renderQuestionsTable()" class="text-xs font-bold bg-slate-200 dark:bg-zinc-800 hover:bg-slate-300 dark:hover:bg-zinc-700 px-3 py-2 rounded-xl border border-slate-300 dark:border-zinc-700">Refresh</button>
-            <button onclick="clearAllQuestions()" class="text-xs font-extrabold text-rose-600 dark:text-rose-400 border border-rose-500/30 bg-rose-50 dark:bg-rose-950/20 px-3 py-2 rounded-xl" title="Move all questions to Recycle Bin">
-              <i class="fa-solid fa-trash-can mr-1"></i> Clear All
-            </button>
-          </div>
-        </div>
-
-        <div class="overflow-x-auto pt-2">
-          <table class="w-full text-left text-sm border-collapse">
-            <thead class="bg-slate-200 dark:bg-zinc-950 text-xs font-extrabold text-slate-900 dark:text-white uppercase border-b border-slate-300 dark:border-zinc-800">
-              <tr>
-                <th class="p-3.5 w-2/5 min-w-[380px]">Question Statement</th>
-                <th class="p-3.5 w-1/5 min-w-[200px]">Subject & Topic Hierarchy</th>
-                <th class="p-3.5 w-1/5 min-w-[220px]">Source & Timestamps</th>
-                <th class="p-3.5 min-w-[130px]">Status</th>
-                <th class="p-3.5 min-w-[160px]">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="recent-questions-tbody" class="divide-y divide-slate-200 dark:divide-zinc-800 font-semibold text-slate-900 dark:text-white">
-              <!-- Rendered via JS -->
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- 3. PDF & IMAGE EXTRACTION TAB -->
-    <section id="tab-pdf" class="hidden space-y-6">
-      <div class="glass p-6 rounded-2xl space-y-4 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-slate-200 dark:border-zinc-800 pb-3">
-          <div>
-            <h2 class="font-black text-xl flex items-center space-x-2 text-slate-900 dark:text-white">
-              <i class="fa-solid fa-file-pdf text-rose-500"></i>
-              <span>PDF & Image Question Extractor (OCR)</span>
-            </h2>
-            <p class="text-sm font-semibold text-slate-600 dark:text-slate-400">
-              Upload PDF files, upload/paste question screenshots (<kbd class="px-1.5 py-0.5 bg-slate-200 dark:bg-zinc-800 rounded font-mono text-xs">Ctrl + V</kbd>), or paste raw text to extract MCQs automatically!
-            </p>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 bg-white dark:bg-zinc-950 p-4 rounded-xl border border-slate-200 dark:border-zinc-800">
-          <div>
-            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Subject</label>
-            <select id="pdf-subject-select" onchange="onPdfSubjectSelectChange()" class="w-full p-2 bg-slate-50 dark:bg-black border border-slate-300 dark:border-zinc-800 rounded-lg text-xs font-bold text-slate-900 dark:text-slate-200">
-              <!-- Populated dynamically via JS -->
-            </select>
-            <input type="text" id="pdf-subject-input" placeholder="Type new subject..." class="hidden w-full p-2 mt-1.5 bg-slate-50 dark:bg-black border border-indigo-500 rounded-lg text-xs font-semibold text-slate-900 dark:text-slate-200">
-          </div>
-          <div>
-            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Topic</label>
-            <select id="pdf-topic-select" onchange="onPdfTopicSelectChange()" class="w-full p-2 bg-slate-50 dark:bg-black border border-slate-300 dark:border-zinc-800 rounded-lg text-xs font-bold text-slate-900 dark:text-indigo-400">
-              <!-- Populated dynamically via JS -->
-            </select>
-            <input type="text" id="pdf-topic-input" placeholder="Type new topic..." class="hidden w-full p-2 mt-1.5 bg-slate-50 dark:bg-black border border-indigo-500 rounded-lg text-xs font-bold text-slate-900 dark:text-indigo-400">
-          </div>
-          <div>
-            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Sub-Folder / Chapter (Optional)</label>
-            <input type="text" id="pdf-subfolder-input" placeholder="Leave empty if none" class="w-full p-2 bg-slate-50 dark:bg-black border border-slate-300 dark:border-zinc-800 rounded-lg text-xs font-semibold text-slate-900 dark:text-slate-200">
-          </div>
-        </div>
-
-        <!-- PRE-EXTRACTED BOOKS QUICK IMPORT BANNER (FULL WIDTH) -->
-        <div class="w-full p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-indigo-500/10 to-emerald-500/15 border border-amber-500/40 flex flex-col md:flex-row items-center justify-between gap-4 my-2 shadow-sm">
-          <div class="flex items-center space-x-3">
-            <div class="w-11 h-11 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-black text-xl shadow-lg shrink-0">
-              <i class="fa-solid fa-book-open"></i>
-            </div>
-            <div>
-              <h4 class="font-extrabold text-sm text-slate-900 dark:text-white flex items-center space-x-2">
-                <span>📚 Mechanical Engineering Volume 1 (Engineering Mechanics)</span>
-                <span class="bg-emerald-600 text-white font-black text-[10px] px-2.5 py-0.5 rounded-full uppercase">602 MCQs Extracted</span>
-              </h4>
-              <p class="text-xs text-slate-600 dark:text-slate-300 font-semibold mt-0.5">
-                602 Questions extracted in 100% exact book sequence (Q1 to Q602) with clean Option D & official derivations ready in preview file!
-              </p>
-            </div>
-          </div>
-          <a href="./extracted_books_preview.html" target="_blank" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-5 py-2.5 rounded-xl text-xs shadow-lg transition flex items-center space-x-2 shrink-0">
-            <i class="fa-solid fa-eye"></i>
-            <span>View & Import 602 Book MCQs ↗</span>
-          </a>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-2">
-          <!-- 1. PDF File Upload Card -->
-          <div class="border-2 border-dashed border-slate-300 dark:border-zinc-800 hover:border-indigo-500 rounded-2xl p-6 text-center space-y-3 transition flex flex-col justify-center items-center bg-white dark:bg-zinc-950/40">
-            <i class="fa-solid fa-file-pdf text-4xl text-rose-500"></i>
-            <div>
-              <p class="font-extrabold text-slate-900 dark:text-white">1. Upload PDF Test Paper</p>
-              <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">Select PDF file from your computer</p>
-            </div>
-            <input type="file" id="pdf-file-input" accept="application/pdf" class="hidden" onchange="handlePdfUpload(event)">
-            <button onclick="document.getElementById('pdf-file-input').click()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl font-bold text-xs transition">
-              Choose PDF File
-            </button>
-            <p id="pdf-status" class="text-xs text-indigo-600 dark:text-indigo-400 font-mono font-bold"></p>
-          </div>
-
-          <!-- 2. Image-to-Question OCR Extractor Card (Upload / Paste Ctrl+V) -->
-          <div id="image-ocr-dropzone" class="border-2 border-dashed border-indigo-400/60 dark:border-indigo-500/40 hover:border-indigo-500 rounded-2xl p-6 text-center space-y-3 transition flex flex-col justify-center items-center bg-indigo-50/50 dark:bg-indigo-950/20 relative">
-            <i class="fa-solid fa-image text-4xl text-indigo-500"></i>
-            <div>
-              <p class="font-extrabold text-slate-900 dark:text-white flex items-center justify-center space-x-1.5">
-                <span>2. Image-to-Question OCR</span>
-                <span class="bg-indigo-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full">Paste Supported</span>
-              </p>
-              <p class="text-xs font-semibold text-slate-600 dark:text-slate-400 mt-1">
-                Upload image or press <kbd class="px-1.5 py-0.5 bg-slate-200 dark:bg-zinc-800 rounded font-mono font-bold text-indigo-600 dark:text-indigo-400">Ctrl + V</kbd> to paste screenshot
-              </p>
+            <!-- Case Details Grid -->
+            <div class="details-grid">
+                <div class="detail-item">
+                    <span class="detail-label">वाद सं०:</span>
+                    <span class="detail-value" id="valCaseNo">-</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">कंप्यूटरीकृत वाद सं०:</span>
+                    <span class="detail-value highlight" id="valComputerNo">-</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">मण्डल - जनपद - तहसील:</span>
+                    <span class="detail-value" id="valLocation">-</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">न्यायालय:</span>
+                    <span class="detail-value" id="valCourt">-</span>
+                </div>
+                <div class="detail-item col-span-2">
+                    <span class="detail-label">वादी / प्रतिवादी:</span>
+                    <span class="detail-value" id="valParties">-</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">दाखिल करने का दिनांक:</span>
+                    <span class="detail-value" id="valFilingDate">-</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">निस्तारण दिनांक:</span>
+                    <span class="detail-value" id="valDisposalDate">-</span>
+                </div>
+                <div class="detail-item col-span-2">
+                    <span class="detail-label">अधिनियम, धारा:</span>
+                    <span class="detail-value" id="valActSection">-</span>
+                </div>
             </div>
 
-            <img id="image-preview-thumb" class="hidden max-h-24 max-w-full rounded-xl border border-indigo-300 dark:border-zinc-700 shadow-sm object-contain my-1">
-
-            <input type="file" id="image-file-input" accept="image/png, image/jpeg, image/jpg, image/webp" class="hidden" onchange="handleImageUpload(event)">
-            <button onclick="document.getElementById('image-file-input').click()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl font-bold text-xs transition shadow-sm">
-              Choose Question Image
-            </button>
-            <p id="image-ocr-status" class="text-xs text-indigo-600 dark:text-indigo-400 font-mono font-bold"></p>
-          </div>
-
-          <!-- 3. Paste Raw Text / Notes -->
-          <div class="space-y-2 flex flex-col justify-between">
-            <div>
-              <label class="text-xs font-extrabold text-slate-900 dark:text-slate-200 mb-1 block">3. Or Paste Question Text / Notes</label>
-              <textarea id="raw-text-input" rows="5" placeholder="Q1. What is the SI unit of Force?&#10;A) Joule&#10;B) Newton&#10;C) Watt&#10;D) Pascal&#10;Answer: B" class="w-full p-2.5 bg-white dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-xl text-xs font-semibold text-slate-900 dark:text-slate-200 focus:outline-none focus:border-indigo-500"></textarea>
+            <!-- Orders Available List -->
+            <div class="orders-section">
+                <div class="orders-section-header">
+                    <h4>इस वाद के अब तक के सभी आदेश (All Available Orders)</h4>
+                    <span class="info-tag">💡 जिस भी आदेश को देखना या प्रिंट करना हो उसपर क्लिक करें</span>
+                </div>
+                
+                <div class="orders-list-tabs" id="ordersListTabs">
+                    <!-- Dynamic Order Buttons -->
+                </div>
             </div>
-            <button onclick="parseRawText()" class="w-full bg-slate-200 dark:bg-zinc-800 hover:bg-slate-300 dark:hover:bg-zinc-700 text-slate-900 dark:text-slate-200 py-2.5 rounded-xl font-bold text-xs border border-slate-300 dark:border-zinc-700 transition flex items-center justify-center space-x-2">
-              <i class="fa-solid fa-wand-magic-sparkles text-amber-500"></i>
-              <span>Parse Text into MCQs</span>
-            </button>
-          </div>
-        </div>
-      </div>
 
-      <div id="pdf-parsed-preview" class="hidden glass p-6 rounded-2xl space-y-4 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800">
-        <div class="flex items-center justify-between">
-          <h3 class="font-extrabold text-lg text-slate-900 dark:text-white">Parsed Questions Preview (<span id="parsed-count">0</span>)</h3>
-          <button onclick="saveAllParsedQuestions()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 rounded-xl text-sm font-extrabold shadow-lg shadow-emerald-600/30 transition flex items-center space-x-2">
-            <i class="fa-solid fa-cloud-arrow-up"></i>
-            <span>Save All to Firebase</span>
-          </button>
-        </div>
-        <div id="parsed-questions-list" class="space-y-4"></div>
-      </div>
-    </section>
+            <!-- Order Preview Frame & Controls -->
+            <div class="order-viewer-container">
+                <div class="viewer-toolbar">
+                    <div class="toolbar-title">
+                        <span class="badge badge-info" id="activeOrderBadge">आदेश चुनें</span>
+                        <span class="barcode-status-indicator" id="barcodeStatusText">✅ स्क्वायर क्यूआर बारकोड एवं Disclaimer हटा दिया गया है</span>
+                    </div>
+                    
+                    <div class="toolbar-actions">
+                        <button class="btn btn-success" id="printCleanOrderBtn">
+                            🖨️ ऑरिजनल आदेश प्रिंट करें (Print A4)
+                        </button>
+                        <button class="btn btn-outline" id="downloadPdfBtn">
+                            📥 PDF डाउनलोड करें
+                        </button>
+                    </div>
+                </div>
 
-    <!-- 4. STUDY DECKS & NOTES TAB WITH TOPIC MANAGER & EDIT/DELETE -->
-    <section id="tab-decks" class="hidden space-y-6">
-      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 glass p-6 rounded-2xl bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800">
-        <div>
-          <h2 class="font-black text-xl flex items-center space-x-2 text-slate-900 dark:text-white">
-            <i class="fa-solid fa-brain text-violet-500"></i>
-            <span>Topic-Wise Study Decks & Flashcards</span>
-          </h2>
-          <p class="text-xs font-semibold text-slate-600 dark:text-slate-400">Organized topic-wise for active recall with Edit and Delete options</p>
-        </div>
-
-        <div class="flex flex-wrap items-center gap-3">
-          <!-- Deck Subject & Topic Filter Dropdowns -->
-          <select id="deck-filter-subject" onchange="onDeckSubjectFilterChange()" class="bg-white dark:bg-zinc-950 border border-slate-300 dark:border-indigo-500/50 text-xs rounded-xl p-2.5 text-slate-900 dark:text-indigo-400 font-bold">
-            <option value="all">📁 All Subjects</option>
-          </select>
-          <select id="deck-filter-topic" onchange="renderDecks()" class="bg-white dark:bg-zinc-950 border border-slate-300 dark:border-indigo-500/50 text-xs rounded-xl p-2.5 text-slate-900 dark:text-indigo-400 font-bold">
-            <option value="all">📂 All Topics</option>
-          </select>
-          <input type="text" id="deck-search-input" onkeyup="renderDecks()" placeholder="🔍 Search decks..." class="p-2.5 bg-white dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-xl text-xs text-slate-900 dark:text-white font-bold focus:outline-none focus:border-indigo-500 w-44">
-
-          <button onclick="openCreateDeckModal()" class="bg-violet-600 hover:bg-violet-500 text-white px-4 py-2.5 rounded-xl font-extrabold text-xs transition shadow-lg shadow-violet-600/30 flex items-center space-x-1.5 shrink-0">
-            <i class="fa-solid fa-plus"></i>
-            <span>Create Deck from Notes</span>
-          </button>
-        </div>
-      </div>
-
-      <div id="decks-grid" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        <!-- Rendered via JS -->
-      </div>
-    </section>
-
-    <!-- 5. TOPICS MANAGER TAB -->
-    <section id="tab-topics" class="hidden space-y-6">
-      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 glass p-6 rounded-2xl bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800">
-        <div>
-          <h2 class="font-black text-xl flex items-center space-x-2 text-slate-900 dark:text-white">
-            <i class="fa-solid fa-folder-open text-amber-500"></i>
-            <span>Topics Manager & Notes Reader</span>
-          </h2>
-          <p class="text-xs font-semibold text-slate-600 dark:text-slate-400">View, edit, read, or organize all your study topics and question sets in one place</p>
-        </div>
-        
-        <div class="flex items-center space-x-3">
-          <input type="text" id="topics-search-input" onkeyup="renderTopicsManager()" placeholder="🔍 Search subject or topic..." class="p-2.5 bg-white dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-xl text-xs text-slate-900 dark:text-white font-bold focus:outline-none focus:border-indigo-500">
-          <button onclick="openCreateTopicModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl text-xs font-extrabold transition shadow-lg shadow-indigo-600/30 flex items-center space-x-1.5 shrink-0">
-            <i class="fa-solid fa-folder-plus"></i>
-            <span>Create New Topic</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Grid of Topics Cards / Subject Folders -->
-      <div id="topics-manager-grid" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        <!-- Rendered dynamically -->
-      </div>
-    </section>
-  </main>
-
-  <!-- CREATE DECK MODAL WITH SUBJECT & TOPIC SELECTION -->
-  <div id="modal-create-deck" class="hidden fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-    <div class="glass max-w-lg w-full p-6 rounded-2xl space-y-4 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800">
-      <div class="flex items-center justify-between">
-        <h3 class="font-extrabold text-lg text-slate-900 dark:text-white flex items-center space-x-2">
-          <i class="fa-solid fa-brain text-violet-500"></i>
-          <span>Create Topic-Wise Study Deck</span>
-        </h3>
-        <button onclick="closeCreateDeckModal()" class="text-slate-400 hover:text-black dark:hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
-      </div>
-
-      <div class="space-y-3 text-xs">
-        <!-- Subject Select -->
-        <div>
-          <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">Subject</label>
-          <select id="create-deck-subject" onchange="onCreateDeckSubjectChange()" class="w-full p-2.5 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-violet-500/50 rounded-xl text-slate-900 dark:text-violet-400 font-extrabold">
-            <!-- Populated via JS -->
-          </select>
-          <input type="text" id="create-deck-subject-custom" placeholder="Type new Subject Name..." class="hidden w-full mt-2 p-2.5 bg-slate-50 dark:bg-black border border-violet-500 rounded-xl text-slate-900 dark:text-slate-200 font-bold">
-        </div>
-
-        <!-- Topic Select -->
-        <div>
-          <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">Topic</label>
-          <select id="create-deck-topic" onchange="onCreateDeckTopicChange()" class="w-full p-2.5 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-violet-500/50 rounded-xl text-slate-900 dark:text-violet-400 font-extrabold">
-            <!-- Populated via JS -->
-          </select>
-          <input type="text" id="create-deck-topic-custom" placeholder="Type new Topic Name..." class="hidden w-full mt-2 p-2.5 bg-slate-50 dark:bg-black border border-violet-500 rounded-xl text-slate-900 dark:text-slate-200 font-bold">
-        </div>
-
-        <div>
-          <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">Deck Title</label>
-          <input type="text" id="create-deck-title" placeholder="e.g. Viscosity & Shear Stress Formulas" class="w-full p-2.5 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-xl text-slate-900 dark:text-slate-200 font-bold">
-        </div>
-
-        <div>
-          <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">Flashcard Front (Question / Concept)</label>
-          <textarea id="create-deck-front" rows="2" placeholder="e.g. What is Kinematic Viscosity formula?" class="w-full p-2.5 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-xl text-slate-900 dark:text-slate-200 font-bold"></textarea>
-        </div>
-
-        <div>
-          <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">Flashcard Back (Solution / Answer)</label>
-          <textarea id="create-deck-back" rows="2" placeholder="e.g. ν = μ / ρ (SI Unit: m²/s)" class="w-full p-2.5 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-xl text-slate-900 dark:text-slate-200 font-bold"></textarea>
-        </div>
-      </div>
-
-      <div class="flex space-x-3 pt-2">
-        <button onclick="saveCreateDeckModal()" class="flex-1 py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-extrabold rounded-xl text-sm transition shadow-lg shadow-violet-600/30">Save Study Deck</button>
-        <button onclick="closeCreateDeckModal()" class="py-2.5 px-4 bg-slate-200 dark:bg-zinc-800 text-slate-900 dark:text-slate-300 rounded-xl text-sm font-bold hover:bg-slate-300 dark:hover:bg-zinc-700">Cancel</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- EDIT DECK MODAL -->
-  <div id="modal-edit-deck" class="hidden fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-    <div class="glass max-w-lg w-full p-6 rounded-2xl space-y-4 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800">
-      <div class="flex items-center justify-between">
-        <h3 class="font-extrabold text-lg text-slate-900 dark:text-white flex items-center space-x-2">
-          <i class="fa-solid fa-pen-to-square text-violet-500"></i>
-          <span>Edit Study Deck</span>
-        </h3>
-        <button onclick="closeEditDeckModal()" class="text-slate-400 hover:text-black dark:hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
-      </div>
-
-      <div class="space-y-3 text-xs">
-        <input type="hidden" id="edit-deck-id">
-
-        <!-- Subject Select -->
-        <div>
-          <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">Subject</label>
-          <select id="edit-deck-subject" onchange="onEditDeckSubjectChange()" class="w-full p-2.5 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-violet-500/50 rounded-xl text-slate-900 dark:text-violet-400 font-extrabold">
-            <!-- Populated via JS -->
-          </select>
-          <input type="text" id="edit-deck-subject-custom" placeholder="Type new Subject Name..." class="hidden w-full mt-2 p-2.5 bg-slate-50 dark:bg-black border border-violet-500 rounded-xl text-slate-900 dark:text-slate-200 font-bold">
-        </div>
-
-        <!-- Topic Select -->
-        <div>
-          <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">Topic</label>
-          <select id="edit-deck-topic" onchange="onEditDeckTopicChange()" class="w-full p-2.5 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-violet-500/50 rounded-xl text-slate-900 dark:text-violet-400 font-extrabold">
-            <!-- Populated via JS -->
-          </select>
-          <input type="text" id="edit-deck-topic-custom" placeholder="Type new Topic Name..." class="hidden w-full mt-2 p-2.5 bg-slate-50 dark:bg-black border border-violet-500 rounded-xl text-slate-900 dark:text-slate-200 font-bold">
-        </div>
-
-        <div>
-          <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">Deck Title</label>
-          <input type="text" id="edit-deck-title" class="w-full p-2.5 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-xl text-slate-900 dark:text-slate-200 font-bold">
-        </div>
-
-        <div>
-          <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">Flashcard Front (Question / Concept)</label>
-          <textarea id="edit-deck-front" rows="2" class="w-full p-2.5 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-xl text-slate-900 dark:text-slate-200 font-bold"></textarea>
-        </div>
-
-        <div>
-          <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">Flashcard Back (Solution / Answer)</label>
-          <textarea id="edit-deck-back" rows="2" class="w-full p-2.5 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-xl text-slate-900 dark:text-slate-200 font-bold"></textarea>
-        </div>
-      </div>
-
-      <div class="flex space-x-3 pt-2">
-        <button onclick="saveEditDeckModal()" class="flex-1 py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-extrabold rounded-xl text-sm transition shadow-lg shadow-violet-600/30">Save Deck Changes</button>
-        <button onclick="closeEditDeckModal()" class="py-2.5 px-4 bg-slate-200 dark:bg-zinc-800 text-slate-900 dark:text-slate-300 rounded-xl text-sm font-bold hover:bg-slate-300 dark:hover:bg-zinc-700">Cancel</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- CREATE NEW TOPIC MODAL WITH SUBJECT DROPDOWN -->
-  <div id="modal-create-topic" class="hidden fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-    <div class="glass max-w-md w-full p-6 rounded-2xl space-y-4 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800">
-      <div class="flex items-center justify-between">
-        <h3 class="font-extrabold text-lg text-slate-900 dark:text-white flex items-center space-x-2">
-          <i class="fa-solid fa-folder-plus text-indigo-500"></i>
-          <span>Create New Topic / Folder</span>
-        </h3>
-        <button onclick="closeCreateTopicModal()" class="text-slate-400 hover:text-black dark:hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
-      </div>
-      <p class="text-xs font-semibold text-slate-600 dark:text-slate-400">Select an existing Subject or create a new Subject to add your Topic.</p>
-
-      <div class="space-y-3 text-xs">
-        <!-- Select Existing Subject or Create New -->
-        <div>
-          <div class="flex items-center justify-between mb-1">
-            <label class="block font-bold text-slate-700 dark:text-slate-300">Select Subject</label>
-            <button type="button" onclick="document.getElementById('create-subj-select').value='__NEW_SUBJECT__'; onCreateSubjectSelectChange(); document.getElementById('create-subj-custom').focus();" class="text-[11px] font-extrabold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center space-x-1">
-              <i class="fa-solid fa-plus-circle"></i>
-              <span>➕ Create New Subject</span>
-            </button>
-          </div>
-          <select id="create-subj-select" onchange="onCreateSubjectSelectChange()" class="w-full p-2.5 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-indigo-500/50 rounded-xl text-slate-900 dark:text-indigo-400 font-extrabold focus:outline-none">
-            <!-- Populated via JS -->
-          </select>
-          <input type="text" id="create-subj-custom" placeholder="Type new Subject Name (e.g. General Knowledge, Reasoning)..." class="hidden w-full mt-2 p-2.5 bg-slate-50 dark:bg-black border border-indigo-500 rounded-xl text-slate-900 dark:text-slate-200 font-bold">
-        </div>
-
-        <!-- New Topic Name Input -->
-        <div>
-          <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">Topic Name</label>
-          <input type="text" id="create-topic-name" placeholder="e.g. Thermodynamics, Strength of Materials" class="w-full p-2.5 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-xl text-slate-900 dark:text-slate-200 font-bold">
-        </div>
-
-        <!-- Optional Sub-Folder Input -->
-        <div>
-          <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">Sub-Folder / Chapter (Optional)</label>
-          <input type="text" id="create-subfolder-name" placeholder="Leave empty if none" class="w-full p-2.5 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-xl text-slate-900 dark:text-slate-200 font-semibold">
-        </div>
-      </div>
-
-      <div class="flex space-x-3 pt-2">
-        <button onclick="saveCreateTopicModal()" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold rounded-xl text-sm transition shadow-lg shadow-indigo-600/30">Create Topic Folder</button>
-        <button onclick="closeCreateTopicModal()" class="py-2.5 px-4 bg-slate-200 dark:bg-zinc-800 text-slate-900 dark:text-slate-300 rounded-xl text-sm font-bold hover:bg-slate-300 dark:hover:bg-zinc-700">Cancel</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- MOVE QUESTION MODAL WITH SUBJECT & TOPIC DROPDOWNS -->
-  <div id="modal-move-question" class="hidden fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-    <div class="glass max-w-md w-full p-6 rounded-2xl space-y-4 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800">
-      <div class="flex items-center justify-between">
-        <h3 class="font-extrabold text-lg text-slate-900 dark:text-white flex items-center space-x-2">
-          <i class="fa-solid fa-box-archive text-indigo-500"></i>
-          <span>Move Question to Folder</span>
-        </h3>
-        <button onclick="closeMoveQuestionModal()" class="text-slate-400 hover:text-black dark:hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
-      </div>
-      <p class="text-xs font-semibold text-slate-600 dark:text-slate-400">Select target Subject and Topic from the dropdown list to move this question.</p>
-      
-      <div class="space-y-3 text-xs">
-        <input type="hidden" id="move-q-id">
-
-        <!-- Target Subject Dropdown Select -->
-        <div>
-          <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">Target Subject</label>
-          <select id="move-q-subject" onchange="onMoveSubjectChange()" class="w-full p-2.5 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-indigo-500/50 rounded-xl text-slate-900 dark:text-indigo-400 font-extrabold focus:outline-none">
-            <!-- Options populated dynamically -->
-          </select>
-          <input type="text" id="move-q-subject-custom" placeholder="Type new Subject Name..." class="hidden w-full mt-2 p-2.5 bg-slate-50 dark:bg-black border border-indigo-500 rounded-xl text-slate-900 dark:text-slate-200 font-bold">
-        </div>
-
-        <!-- Target Topic Dropdown Select -->
-        <div>
-          <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">Target Topic</label>
-          <select id="move-q-topic" onchange="onMoveTopicChange()" class="w-full p-2.5 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-indigo-500/50 rounded-xl text-slate-900 dark:text-indigo-400 font-extrabold focus:outline-none">
-            <!-- Options populated dynamically -->
-          </select>
-          <input type="text" id="move-q-topic-custom" placeholder="Type new Topic Name..." class="hidden w-full mt-2 p-2.5 bg-slate-50 dark:bg-black border border-indigo-500 rounded-xl text-slate-900 dark:text-slate-200 font-bold">
-        </div>
-
-        <div>
-          <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">Target Sub-Folder (Optional)</label>
-          <input type="text" id="move-q-subfolder" placeholder="Leave empty if none" class="w-full p-2.5 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-xl text-slate-900 dark:text-slate-200 font-semibold">
-        </div>
-      </div>
-
-      <div class="flex space-x-3 pt-2">
-        <button onclick="saveMoveQuestionModal()" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold rounded-xl text-sm transition shadow-lg shadow-indigo-600/30">Move Question Now</button>
-        <button onclick="closeMoveQuestionModal()" class="py-2.5 px-4 bg-slate-200 dark:bg-zinc-800 text-slate-900 dark:text-slate-300 rounded-xl text-sm font-bold hover:bg-slate-300 dark:hover:bg-zinc-700">Cancel</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- EDIT QUESTION MODAL -->
-  <div id="modal-edit-question" class="hidden fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-    <div class="glass max-w-2xl w-full max-h-[90vh] p-6 rounded-2xl space-y-4 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex flex-col">
-      <div class="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-zinc-800">
-        <h3 class="font-extrabold text-lg text-slate-900 dark:text-white flex items-center space-x-2">
-          <i class="fa-solid fa-pen-to-square text-indigo-500"></i>
-          <span>Edit Question Content & Answers</span>
-        </h3>
-        <button onclick="closeEditQuestionModal()" class="text-slate-400 hover:text-black dark:hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
-      </div>
-
-      <div class="flex-1 overflow-y-auto space-y-3 pr-1 text-xs">
-        <input type="hidden" id="edit-q-id">
-
-        <div>
-          <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">Question Statement</label>
-          <textarea id="edit-q-text" rows="4" class="w-full p-3 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-xl text-slate-900 dark:text-slate-200 font-bold focus:outline-none focus:border-indigo-500"></textarea>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">Option A</label>
-            <input type="text" id="edit-q-opt-0" class="w-full p-2.5 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-xl text-slate-900 dark:text-slate-200 font-bold">
-          </div>
-          <div>
-            <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">Option B</label>
-            <input type="text" id="edit-q-opt-1" class="w-full p-2.5 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-xl text-slate-900 dark:text-slate-200 font-bold">
-          </div>
-          <div>
-            <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">Option C</label>
-            <input type="text" id="edit-q-opt-2" class="w-full p-2.5 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-xl text-slate-900 dark:text-slate-200 font-bold">
-          </div>
-          <div>
-            <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">Option D</label>
-            <input type="text" id="edit-q-opt-3" class="w-full p-2.5 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-xl text-slate-900 dark:text-slate-200 font-bold">
-          </div>
-        </div>
-
-        <div>
-          <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">Correct Answer Index</label>
-          <select id="edit-q-correct-idx" class="w-full p-2.5 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-xl text-slate-900 dark:text-indigo-400 font-black">
-            <option value="0">Option A</option>
-            <option value="1">Option B</option>
-            <option value="2">Option C</option>
-            <option value="3">Option D</option>
-          </select>
-        </div>
-
-        <div>
-          <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">Detailed Concept Solution</label>
-          <textarea id="edit-q-explanation" rows="4" class="w-full p-3 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-xl text-slate-900 dark:text-slate-200 font-mono focus:outline-none focus:border-indigo-500"></textarea>
-        </div>
-      </div>
-
-      <div class="flex space-x-3 pt-3 border-t border-slate-200 dark:border-zinc-800">
-        <button onclick="saveEditQuestionModal()" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold rounded-xl text-sm transition shadow-lg shadow-indigo-600/30">Save Question Changes</button>
-        <button onclick="closeEditQuestionModal()" class="py-2.5 px-4 bg-slate-200 dark:bg-zinc-800 text-slate-900 dark:text-slate-300 rounded-xl text-sm font-bold hover:bg-slate-300 dark:hover:bg-zinc-700">Cancel</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Firebase & Settings Modal with Recycle Bin Option -->
-  <div id="modal-config" class="hidden fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-    <div class="glass max-w-md w-full p-6 rounded-2xl space-y-5 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800">
-      <div class="flex items-center justify-between border-b border-slate-200 dark:border-zinc-800 pb-3">
-        <h3 class="font-extrabold text-lg text-slate-900 dark:text-white flex items-center space-x-2">
-          <i class="fa-solid fa-gear text-indigo-500"></i>
-          <span>Settings</span>
-        </h3>
-        <button onclick="closeConfigModal()" class="text-slate-400 hover:text-black dark:hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
-      </div>
-      
-      <!-- 1. Recycle Bin Option -->
-      <div class="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-500/30 space-y-2">
-        <div class="flex items-center justify-between">
-          <span class="font-black text-sm text-slate-900 dark:text-white flex items-center space-x-1.5">
-            <i class="fa-solid fa-trash-can-arrow-up text-amber-500"></i>
-            <span>30-Day Recycle Bin</span>
-          </span>
-          <span class="bg-amber-500 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-full uppercase">Safety Net</span>
-        </div>
-        <p class="text-xs text-slate-600 dark:text-slate-300 font-semibold">Deleted questions stay in the Recycle Bin for 30 days before permanent auto-purge.</p>
-        
-        <button onclick="openRecycleBinModal()" class="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs transition shadow-lg flex items-center justify-center space-x-2 mt-2">
-          <i class="fa-solid fa-eye"></i>
-          <span>Seen Deleted Questions (Recycle Bin)</span>
-        </button>
-      </div>
-
-      <!-- 2. D-Day Exam Target & Timer Settings -->
-      <div class="p-4 bg-slate-100 dark:bg-zinc-950 rounded-xl border border-amber-500/30 space-y-3">
-        <div class="flex items-center justify-between">
-          <span class="font-black text-sm text-slate-900 dark:text-white flex items-center space-x-1.5">
-            <i class="fa-solid fa-flag-checkered text-amber-500"></i>
-            <span>D-Day Exam Target & Countdown Timer</span>
-          </span>
-          <span class="bg-amber-500 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-full uppercase">Target</span>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-          <div>
-            <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">🎯 Target Exam Name</label>
-            <input type="text" id="cfg-dday-title" placeholder="e.g. RRB ALP CBT-1, SSC JE..." class="w-full p-2.5 bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-800 rounded-xl text-slate-900 dark:text-slate-200 font-bold">
-          </div>
-          <div>
-            <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">📅 Exam D-Day Date & Time</label>
-            <input type="datetime-local" id="cfg-dday-date" class="w-full p-2.5 bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-800 rounded-xl text-slate-900 dark:text-slate-200 font-bold">
-          </div>
-        </div>
-      </div>
-
-      <!-- 3. Firebase Database & Gemini AI Config -->
-      <div class="space-y-3 text-xs pt-1">
-        <h4 class="font-extrabold text-slate-900 dark:text-white text-sm flex items-center justify-between">
-          <span>Google Gemini AI & Cloud Connection</span>
-          <span class="bg-indigo-600 text-white font-black text-[10px] px-2 py-0.5 rounded-full">Hinglish AI</span>
-        </h4>
-        <div>
-          <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300 flex items-center justify-between">
-            <span>✨ Google Gemini API Key</span>
-            <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-indigo-600 dark:text-indigo-400 underline font-extrabold text-[10px]">Get Free Key ↗</a>
-          </label>
-          <input type="text" id="cfg-gemini-key" placeholder="AIzaSy..." class="w-full p-2.5 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-xl text-slate-900 dark:text-slate-200 font-mono">
-        </div>
-        <div>
-          <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">Firebase Project ID</label>
-          <input type="text" id="cfg-project-id" placeholder="e.g. questionsbank-23100" class="w-full p-2.5 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-xl text-slate-900 dark:text-slate-200 font-mono">
-        </div>
-        <div>
-          <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">Firebase API Key</label>
-          <input type="text" id="cfg-api-key" placeholder="AIzaSy..." class="w-full p-2.5 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-xl text-slate-900 dark:text-slate-200 font-mono">
-        </div>
-      </div>
-
-      <div class="flex space-x-3 pt-2">
-        <button onclick="saveConfigFromModal()" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold rounded-xl text-sm transition">Save All Configs</button>
-        <button onclick="closeConfigModal()" class="py-2.5 px-4 bg-slate-200 dark:bg-zinc-800 text-slate-900 dark:text-slate-300 rounded-xl text-sm font-bold hover:bg-slate-300 dark:hover:bg-zinc-700">Close</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 30-DAY RECYCLE BIN MODAL (SEEN DELETED QUESTIONS) -->
-  <div id="modal-recycle-bin" class="hidden fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-    <div class="glass max-w-3xl w-full max-h-[90vh] p-6 rounded-2xl space-y-4 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex flex-col">
-      <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-zinc-800">
-        <div>
-          <h3 class="font-extrabold text-lg text-slate-900 dark:text-white flex items-center space-x-2">
-            <i class="fa-solid fa-trash-can text-amber-500"></i>
-            <span>30-Day Recycle Bin (Deleted Questions)</span>
-          </h3>
-          <p class="text-xs text-slate-500 dark:text-slate-400 font-semibold" id="recycle-bin-subtitle">Questions in trash are automatically purged permanently after 30 days</p>
-        </div>
-        <button onclick="closeRecycleBinModal()" class="text-slate-400 hover:text-black dark:hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
-      </div>
-
-      <!-- Quick Bulk Actions -->
-      <div class="flex items-center justify-between bg-slate-100 dark:bg-zinc-950 p-3 rounded-xl border border-slate-200 dark:border-zinc-800">
-        <span class="text-xs font-bold text-slate-600 dark:text-slate-300" id="recycle-count-text">0 Deleted Items in Trash</span>
-        <div class="flex items-center space-x-2">
-          <button onclick="restoreAllDeleted()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-extrabold transition flex items-center space-x-1">
-            <i class="fa-solid fa-rotate-left"></i>
-            <span>Restore All</span>
-          </button>
-          <button onclick="emptyRecycleBinPrompt()" class="bg-rose-600/20 hover:bg-rose-600 text-rose-600 dark:text-rose-400 hover:text-white px-3 py-1.5 rounded-lg text-xs font-extrabold border border-rose-500/30 transition flex items-center space-x-1">
-            <i class="fa-solid fa-fire"></i>
-            <span>Empty Trash Forever</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Scrollable List of Deleted Questions -->
-      <div id="recycle-bin-questions-list" class="flex-1 overflow-y-auto space-y-4 pr-1">
-        <!-- Rendered via JS -->
-      </div>
-
-      <div class="pt-3 border-t border-slate-200 dark:border-zinc-800 flex justify-end">
-        <button onclick="closeRecycleBinModal()" class="bg-indigo-600 text-white px-5 py-2 rounded-xl text-xs font-extrabold">Close Recycle Bin</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- EDIT TOPIC NAME MODAL -->
-  <div id="modal-edit-topic" class="hidden fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-    <div class="glass max-w-md w-full p-6 rounded-2xl space-y-4 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800">
-      <div class="flex items-center justify-between">
-        <h3 class="font-extrabold text-lg text-slate-900 dark:text-white flex items-center space-x-2">
-          <i class="fa-solid fa-pen-to-square text-indigo-500"></i>
-          <span>Edit Topic Name</span>
-        </h3>
-        <button onclick="closeEditTopicModal()" class="text-slate-400 hover:text-black dark:hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
-      </div>
-      <p class="text-xs font-semibold text-slate-600 dark:text-slate-400">Renaming this topic will update all questions assigned to it across the database.</p>
-      
-      <div class="space-y-3 text-xs">
-        <input type="hidden" id="edit-orig-subject">
-        <input type="hidden" id="edit-orig-topic">
-
-        <div>
-          <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">Subject Name</label>
-          <input type="text" id="edit-new-subject" class="w-full p-2.5 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-xl text-slate-900 dark:text-slate-200 font-bold">
-        </div>
-        <div>
-          <label class="block font-bold mb-1 text-slate-700 dark:text-slate-300">Topic Name</label>
-          <input type="text" id="edit-new-topic" class="w-full p-2.5 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-xl text-slate-900 dark:text-indigo-400 font-extrabold">
-        </div>
-      </div>
-
-      <div class="flex space-x-3 pt-2">
-        <button onclick="saveEditTopicModal()" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold rounded-xl text-sm transition shadow-lg shadow-indigo-600/30">Save Changes</button>
-        <button onclick="closeEditTopicModal()" class="py-2.5 px-4 bg-slate-200 dark:bg-zinc-800 text-slate-900 dark:text-slate-300 rounded-xl text-sm font-bold hover:bg-slate-300 dark:hover:bg-zinc-700">Cancel</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- TOPIC READER MODAL -->
-  <div id="modal-topic-reader" class="hidden fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-    <div class="glass max-w-3xl w-full max-h-[90vh] p-6 rounded-2xl space-y-4 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 flex flex-col">
-      <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-zinc-800">
-        <div>
-          <h3 class="font-extrabold text-lg text-slate-900 dark:text-white flex items-center space-x-2" id="reader-topic-title">
-            <span>📖 Topic Reading View</span>
-          </h3>
-          <p class="text-xs text-slate-500 dark:text-slate-400 font-semibold" id="reader-topic-subtitle">Read all questions, options, and concept solutions</p>
-        </div>
-        <button onclick="closeTopicReaderModal()" class="text-slate-400 hover:text-black dark:hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
-      </div>
-
-      <div id="reader-questions-list" class="flex-1 overflow-y-auto space-y-4 pr-1">
-        <!-- Rendered via JS -->
-      </div>
-
-      <div class="pt-3 border-t border-slate-200 dark:border-zinc-800 flex justify-end">
-        <button onclick="closeTopicReaderModal()" class="bg-indigo-600 text-white px-5 py-2 rounded-xl text-xs font-extrabold">Close Reader</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 🎯 CUSTOM TIMED MOCK TEST SETUP MODAL -->
-  <div id="modal-test-setup" class="hidden fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-    <div class="glass max-w-lg w-full p-6 sm:p-8 rounded-3xl space-y-6 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-2xl">
-      <div class="flex items-center justify-between border-b border-slate-200 dark:border-zinc-800 pb-4">
-        <div>
-          <h3 class="font-black text-xl text-slate-900 dark:text-white flex items-center space-x-2.5">
-            <div class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-500 flex items-center justify-center text-sm">
-              <i class="fa-solid fa-bullseye"></i>
+                <div class="order-document-wrapper">
+                    <iframe id="orderIframe" class="official-order-iframe" src="about:blank"></iframe>
+                </div>
             </div>
-            <span>Custom Timed Mock Test Setup</span>
-          </h3>
-          <p class="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-0.5">Configure custom exam hall test from your QuestionBank</p>
-        </div>
-        <button onclick="closeTestSetupModal()" class="text-slate-400 hover:text-black dark:hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
-      </div>
+        </section>
+    </main>
 
-      <div class="space-y-4">
-        <!-- 1. Subject Select -->
-        <div>
-          <label class="block text-xs font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5 flex items-center justify-between">
-            <span>📁 Select Target Subject</span>
-            <span class="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold" id="test-subject-count-info">All Questions</span>
-          </label>
-          <select id="test-subject-select" onchange="onTestSubjectChange()" class="w-full p-3 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-xl text-slate-900 dark:text-indigo-400 font-black text-sm focus:outline-none focus:border-indigo-500">
-            <option value="all">📁 All Subjects (Full Syllabus Mock)</option>
-          </select>
-        </div>
+    <footer class="app-footer">
+        <p>सर्वाधिकार सुरक्षित © 2026 राजस्व न्यायालय कंप्यूटरीकृत प्रबंधन प्रणाली, उत्तर प्रदेश</p>
+        <p class="sub-footer">Live Order Proxy Engine - No Barcode & No Disclaimer Print Generator.</p>
+    </footer>
 
-        <!-- 2. Question Count Selector -->
-        <div>
-          <label class="block text-xs font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-            🔢 Number of Questions
-          </label>
-          <div class="grid grid-cols-5 gap-2">
-            <button type="button" onclick="setTestQuestionCount(10)" id="btn-count-10" class="test-count-btn py-2.5 rounded-xl border border-indigo-600 bg-indigo-600 text-white font-black text-xs transition shadow-md">10 Qs</button>
-            <button type="button" onclick="setTestQuestionCount(20)" id="btn-count-20" class="test-count-btn py-2.5 rounded-xl border border-slate-300 dark:border-zinc-800 bg-slate-100 dark:bg-zinc-950 text-slate-700 dark:text-slate-300 font-bold text-xs hover:border-indigo-500 transition">20 Qs</button>
-            <button type="button" onclick="setTestQuestionCount(30)" id="btn-count-30" class="test-count-btn py-2.5 rounded-xl border border-slate-300 dark:border-zinc-800 bg-slate-100 dark:bg-zinc-950 text-slate-700 dark:text-slate-300 font-bold text-xs hover:border-indigo-500 transition">30 Qs</button>
-            <button type="button" onclick="setTestQuestionCount(50)" id="btn-count-50" class="test-count-btn py-2.5 rounded-xl border border-slate-300 dark:border-zinc-800 bg-slate-100 dark:bg-zinc-950 text-slate-700 dark:text-slate-300 font-bold text-xs hover:border-indigo-500 transition">50 Qs</button>
-            <button type="button" onclick="setTestQuestionCount(100)" id="btn-count-100" class="test-count-btn py-2.5 rounded-xl border border-slate-300 dark:border-zinc-800 bg-slate-100 dark:bg-zinc-950 text-slate-700 dark:text-slate-300 font-bold text-xs hover:border-indigo-500 transition">100 Qs</button>
-          </div>
-        </div>
-
-        <!-- 3. Priority Focus (Weakness Priority) -->
-        <div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between">
-          <div class="space-y-0.5">
-            <span class="font-extrabold text-xs text-slate-900 dark:text-white flex items-center space-x-1.5">
-              <i class="fa-solid fa-brain text-amber-500"></i>
-              <span>Weakness Priority Focus</span>
-            </span>
-            <p class="text-[11px] text-slate-600 dark:text-slate-400 font-medium">Prioritize questions marked as Needs Revision / low accuracy first</p>
-          </div>
-          <label class="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" id="test-weakness-focus" checked class="sr-only peer">
-            <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-zinc-800 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
-          </label>
-        </div>
-
-        <!-- 4. Custom Timer Selection -->
-        <div>
-          <label class="block text-xs font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5 flex items-center justify-between">
-            <span>⏱️ Test Duration (Minutes)</span>
-            <span class="text-[11px] font-bold text-indigo-500" id="test-timer-display-hint">30 Minutes</span>
-          </label>
-          <div class="flex space-x-2">
-            <input type="number" id="test-duration-minutes" min="1" max="300" value="30" oninput="updateTestTimerHint()" class="flex-1 p-3 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-xl text-slate-900 dark:text-white font-black text-sm focus:outline-none focus:border-indigo-500">
-            <div class="flex space-x-1">
-              <button type="button" onclick="setTestDuration(10)" class="px-2.5 py-2 bg-slate-200 dark:bg-zinc-800 hover:bg-indigo-600 hover:text-white rounded-lg text-xs font-bold transition">10m</button>
-              <button type="button" onclick="setTestDuration(20)" class="px-2.5 py-2 bg-slate-200 dark:bg-zinc-800 hover:bg-indigo-600 hover:text-white rounded-lg text-xs font-bold transition">20m</button>
-              <button type="button" onclick="setTestDuration(30)" class="px-2.5 py-2 bg-slate-200 dark:bg-zinc-800 hover:bg-indigo-600 hover:text-white rounded-lg text-xs font-bold transition">30m</button>
-              <button type="button" onclick="setTestDuration(60)" class="px-2.5 py-2 bg-slate-200 dark:bg-zinc-800 hover:bg-indigo-600 hover:text-white rounded-lg text-xs font-bold transition">60m</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="pt-3 border-t border-slate-200 dark:border-zinc-800 flex space-x-3">
-        <button onclick="startMockTest()" class="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-2xl text-sm transition shadow-lg shadow-indigo-600/30 flex items-center justify-center space-x-2">
-          <i class="fa-solid fa-play"></i>
-          <span>🚀 Start Mock Exam Now</span>
-        </button>
-        <button onclick="closeTestSetupModal()" class="py-3 px-5 bg-slate-200 dark:bg-zinc-800 text-slate-900 dark:text-slate-300 rounded-2xl text-sm font-bold hover:bg-slate-300 dark:hover:bg-zinc-700">Cancel</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 🏆 TEST SCORECARD & ACCURACY REPORT MODAL -->
-  <div id="modal-test-scorecard" class="hidden fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
-    <div class="glass max-w-3xl w-full max-h-[92vh] flex flex-col p-6 sm:p-8 rounded-3xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-2xl text-center relative">
-      <button onclick="closeTestScorecard()" class="absolute top-5 right-5 w-9 h-9 rounded-xl bg-slate-100 dark:bg-zinc-800 hover:bg-rose-500 hover:text-white text-slate-500 dark:text-slate-400 font-bold transition flex items-center justify-center text-lg z-10" title="Close Scorecard (Esc)">
-        ✕
-      </button>
-      <div class="overflow-y-auto flex-1 space-y-6 pr-1">
-        <div class="w-16 h-16 rounded-3xl bg-emerald-500/20 text-emerald-500 flex items-center justify-center text-3xl mx-auto shadow-lg shadow-emerald-500/20">
-          <i class="fa-solid fa-trophy"></i>
-        </div>
-
-        <div>
-          <h3 class="font-black text-2xl text-slate-900 dark:text-white">Mock Test Performance Report</h3>
-          <p class="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-1" id="scorecard-subject-name">Subject: All Subjects</p>
-        </div>
-
-        <div class="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
-          <div class="p-3.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-500/30">
-            <div class="text-xl font-black text-indigo-600 dark:text-indigo-400" id="scorecard-accuracy">85%</div>
-            <div class="text-[9px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 mt-0.5">Accuracy %</div>
-          </div>
-          <div class="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-500/30">
-            <div class="text-xl font-black text-emerald-600 dark:text-emerald-400" id="scorecard-correct">17</div>
-            <div class="text-[9px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 mt-0.5">Correct (Right)</div>
-          </div>
-          <div class="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/50 border border-rose-500/30">
-            <div class="text-xl font-black text-rose-600 dark:text-rose-400" id="scorecard-incorrect">3</div>
-            <div class="text-[9px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 mt-0.5">Incorrect (Wrong)</div>
-          </div>
-          <div class="p-3.5 rounded-2xl bg-slate-100 dark:bg-zinc-800/80 border border-slate-300 dark:border-zinc-700">
-            <div class="text-xl font-black text-slate-700 dark:text-slate-300" id="scorecard-skipped">0</div>
-            <div class="text-[9px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 mt-0.5">Skipped</div>
-          </div>
-          <div class="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/50 border border-amber-500/30">
-            <div class="text-xl font-black text-amber-600 dark:text-amber-400" id="scorecard-time-taken">14m 20s</div>
-            <div class="text-[9px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 mt-0.5">Time Taken</div>
-          </div>
-        </div>
-
-        <div id="scorecard-weak-topics-box" class="p-4 rounded-2xl bg-slate-100 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 text-left space-y-2">
-          <span class="font-extrabold text-xs text-slate-900 dark:text-white uppercase tracking-wider flex items-center space-x-1.5">
-            <i class="fa-solid fa-lightbulb text-amber-500"></i>
-            <span>AI Performance Analysis & Revision Suggestions:</span>
-          </span>
-          <div id="scorecard-weak-topics-list" class="text-xs text-slate-600 dark:text-slate-300 font-semibold space-y-1.5"></div>
-        </div>
-
-        <!-- 📋 DETAILED QUESTION-BY-QUESTION MISTAKE & SOLUTION BREAKDOWN -->
-        <div class="p-4 rounded-2xl bg-slate-100 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 text-left space-y-3">
-          <div class="flex items-center justify-between">
-            <span class="font-extrabold text-xs text-slate-900 dark:text-white uppercase tracking-wider flex items-center space-x-1.5">
-              <i class="fa-solid fa-list-check text-indigo-500"></i>
-              <span>Detailed Question-by-Question Mistake & Solution Breakdown:</span>
-            </span>
-          </div>
-          <div id="scorecard-questions-breakdown" class="space-y-4"></div>
-        </div>
-      </div>
-
-      <div class="flex space-x-3 pt-4 border-t border-slate-200 dark:border-zinc-800">
-        <button onclick="openTestReviewModal('incorrect')" class="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold rounded-2xl text-sm transition shadow-lg shadow-indigo-600/30 flex items-center justify-center space-x-2">
-          <i class="fa-solid fa-file-circle-exclamation text-amber-300"></i>
-          <span>🔍 Review Mistakes & Solutions (Pop-Up)</span>
-        </button>
-        <button onclick="openTestSetupModal(); closeTestScorecard();" class="py-3 px-5 bg-slate-200 dark:bg-zinc-800 text-slate-900 dark:text-slate-300 rounded-2xl text-sm font-bold hover:bg-slate-300 dark:hover:bg-zinc-700">
-          Retake Test
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 🔍 DEDICATED TEST SOLUTIONS REVIEW MODAL POP-UP -->
-  <div id="modal-test-review-solutions" class="hidden fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
-    <div class="glass max-w-4xl w-full max-h-[92vh] flex flex-col p-6 sm:p-8 rounded-3xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-2xl space-y-4">
-      <div class="flex items-center justify-between border-b border-slate-200 dark:border-zinc-800 pb-3">
-        <div>
-          <h3 class="font-black text-xl text-slate-900 dark:text-white flex items-center space-x-2">
-            <i class="fa-solid fa-clipboard-check text-indigo-500"></i>
-            <span>Exam Mistakes & Solutions Review</span>
-          </h3>
-          <p class="text-xs text-slate-500 dark:text-slate-400 font-semibold">Detailed breakdown of wrong options, correct options, and concept notes</p>
-        </div>
-        <button onclick="closeTestReviewModal()" class="text-slate-400 hover:text-black dark:hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
-      </div>
-
-      <!-- Filter Toggle Buttons -->
-      <div class="flex items-center space-x-2 bg-slate-100 dark:bg-zinc-950 p-1.5 rounded-xl border border-slate-200 dark:border-zinc-800 shrink-0">
-        <button onclick="filterReviewModalQuestions('incorrect')" id="btn-review-filter-incorrect" class="flex-1 py-2.5 rounded-xl text-xs font-black transition bg-rose-600 text-white shadow-sm flex items-center justify-center space-x-1.5">
-          <span>❌ Incorrect Only</span>
-          <span class="bg-rose-950/40 text-white font-mono px-2 py-0.5 rounded-full text-[10px]" id="count-review-incorrect">0</span>
-        </button>
-        <button onclick="filterReviewModalQuestions('skipped')" id="btn-review-filter-skipped" class="flex-1 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 transition flex items-center justify-center space-x-1.5">
-          <span>⏰ Skipped Only</span>
-          <span class="bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-slate-300 font-mono px-2 py-0.5 rounded-full text-[10px]" id="count-review-skipped">0</span>
-        </button>
-        <button onclick="filterReviewModalQuestions('all')" id="btn-review-filter-all" class="flex-1 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 transition flex items-center justify-center space-x-1.5">
-          <span>📁 All Exam Questions</span>
-          <span class="bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-slate-300 font-mono px-2 py-0.5 rounded-full text-[10px]" id="count-review-all">0</span>
-        </button>
-      </div>
-
-      <!-- Review Questions List Scroll Area -->
-      <div id="test-review-modal-questions-list" class="flex-1 overflow-y-auto space-y-4 pr-1">
-        <!-- Rendered dynamically via JS -->
-      </div>
-
-      <div class="pt-3 border-t border-slate-200 dark:border-zinc-800 flex justify-end">
-        <button onclick="closeTestReviewModal()" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold rounded-xl text-xs transition shadow-md">
-          Close Review
-        </button>
-  <!-- D-DAY EXAM TARGET & TIMER SETUP MODAL -->
-  <div id="modal-dday-setup" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
-    <div class="glass max-w-md w-full p-6 rounded-3xl space-y-5 bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 shadow-2xl animate-fade-in text-left">
-      <div class="flex items-center justify-between border-b border-slate-200 dark:border-zinc-800 pb-3">
-        <div class="flex items-center space-x-2">
-          <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-500 flex items-center justify-center font-bold">
-            <i class="fa-solid fa-flag-checkered"></i>
-          </div>
-          <h2 class="text-base font-black text-slate-900 dark:text-white">D-Day Target Setup</h2>
-        </div>
-        <button onclick="closeDDaySetupModal()" class="text-slate-400 hover:text-white text-lg font-bold">✕</button>
-      </div>
-
-      <div class="space-y-4">
-        <div>
-          <label class="block text-xs font-extrabold text-slate-600 dark:text-slate-400 mb-1.5">🎯 Target Exam Name</label>
-          <input type="text" id="dday-inp-title" placeholder="e.g. RRB ALP CBT-1, SSC JE, GATE 2026..." class="w-full p-3 bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-800 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500">
-        </div>
-
-        <div>
-          <label class="block text-xs font-extrabold text-slate-600 dark:text-slate-400 mb-1.5">📅 Exam D-Day Date & Time</label>
-          <input type="datetime-local" id="dday-inp-date" class="w-full p-3 bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-800 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500">
-        </div>
-      </div>
-
-      <div class="flex items-center justify-end space-x-2 pt-2 border-t border-slate-200 dark:border-zinc-800">
-        <button onclick="closeDDaySetupModal()" class="px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-zinc-700 transition">Cancel</button>
-        <button onclick="saveDDayConfigModal()" class="px-5 py-2.5 rounded-xl text-xs font-black bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 shadow-lg shadow-amber-500/20 transition">Save D-Day Target</button>
-      </div>
-    </div>
-  </div>
-
-  <script src="./firebase-config.js"></script>
-  <script src="./pdf-parser.js"></script>
-  <script src="./app.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
