@@ -1,0 +1,204 @@
+document.addEventListener('DOMContentLoaded', () => {
+    // DOM Elements
+    const searchForm = document.getElementById('searchForm');
+    const caseAutoNoInput = document.getElementById('caseAutoNo');
+    const loadSampleBtn = document.getElementById('loadSampleBtn');
+    const removeQrToggle = document.getElementById('removeQrToggle');
+    const removeDisclaimerToggle = document.getElementById('removeDisclaimerToggle');
+    const loader = document.getElementById('loader');
+    
+    const caseSummarySection = document.getElementById('caseSummarySection');
+    const valCaseNo = document.getElementById('valCaseNo');
+    const valComputerNo = document.getElementById('valComputerNo');
+    const valLocation = document.getElementById('valLocation');
+    const valCourt = document.getElementById('valCourt');
+    const valParties = document.getElementById('valParties');
+    const valFilingDate = document.getElementById('valFilingDate');
+    const valDisposalDate = document.getElementById('valDisposalDate');
+    const valActSection = document.getElementById('valActSection');
+    const ordersListTabs = document.getElementById('ordersListTabs');
+    
+    const activeOrderBadge = document.getElementById('activeOrderBadge');
+    const barcodeStatusText = document.getElementById('barcodeStatusText');
+    const orderIframe = document.getElementById('orderIframe');
+    
+    const printLatestDirectBtn = document.getElementById('printLatestDirectBtn');
+    const printCleanOrderBtn = document.getElementById('printCleanOrderBtn');
+    const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+
+    // App State
+    let currentCaseData = null;
+    let currentOrderId = null;
+    let currentLoginType = "NT";
+    let removeSquareBarcode = true;
+    let removeDisclaimer = true;
+
+    // Check Server Status
+    fetchServerStatus();
+
+    // Event Listeners
+    searchForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const caseNo = caseAutoNoInput.value.trim();
+        if (caseNo) {
+            performSearch(caseNo);
+        }
+    });
+
+    printCleanOrderBtn.addEventListener('click', () => {
+        triggerIframePrint();
+    });
+
+    printLatestDirectBtn.addEventListener('click', () => {
+        if (currentCaseData && currentCaseData.orders && currentCaseData.orders.length > 0) {
+            const first = currentCaseData.orders[0];
+            selectOrder(first.order_id, first.login_type || "NT");
+            setTimeout(() => {
+                triggerIframePrint();
+            }, 300);
+        }
+    });
+
+    downloadPdfBtn.addEventListener('click', () => {
+        downloadCleanPdf();
+    });
+
+    // Functions
+    async function fetchServerStatus() {
+        try {
+            const res = await fetch('/api/status');
+            const data = await res.json();
+            if (data.status === 'online') {
+                const statusBadge = document.getElementById('serverStatus');
+                statusBadge.innerHTML = `<span class="status-dot online"></span><span class="status-text">स्मार्ट सर्वर (Smart Order Fetcher Ready)</span>`;
+            }
+        } catch (e) {
+            console.warn('Server offline mode');
+        }
+    }
+
+    async function performSearch(caseNo) {
+        showLoader(true, `vaad.up.nic.in से वाद '${caseNo}' का संपूर्ण विवरण एवं आदेश खोजा जा रहा है...`);
+        caseSummarySection.classList.add('hidden');
+
+        try {
+            const response = await fetch(`/api/search?case_no=${encodeURIComponent(caseNo)}`);
+            const result = await response.json();
+
+            if (result.success && result.data) {
+                currentCaseData = result.data;
+                renderCaseDetails(currentCaseData);
+                showLoader(false);
+                caseSummarySection.classList.remove('hidden');
+
+                if (currentCaseData.orders && currentCaseData.orders.length > 0) {
+                    const first = currentCaseData.orders[0];
+                    selectOrder(first.order_id, first.login_type || "NT");
+                }
+            } else {
+                alert(result.error || `कंप्यूटरीकृत वाद संख्या '${caseNo}' सर्वर पर उपलब्ध नहीं है।`);
+                showLoader(false);
+            }
+        } catch (err) {
+            console.error('Search error:', err);
+            showLoader(false);
+            alert('सर्वर से संपर्क करने में त्रुटि हुई।');
+        }
+    }
+
+    function renderCaseDetails(data) {
+        valCaseNo.textContent = data.case_no || '';
+        valComputerNo.textContent = data.computer_case_no || '';
+        valLocation.textContent = `${data.mandal || 'उत्तर प्रदेश'} - ${data.janpad || 'जनपद'} - ${data.tehsil || 'तहसील'}`;
+        valCourt.textContent = data.nyayalaya || 'तहसीलदार/नायब तहसीलदार';
+        valParties.textContent = data.vadi_prativadi || '';
+        valFilingDate.textContent = data.filing_date || '';
+        valDisposalDate.textContent = data.disposal_date || '';
+        valActSection.textContent = data.act_section || '';
+
+        // Render Order Tabs for ALL available orders
+        ordersListTabs.innerHTML = '';
+        if (data.orders && data.orders.length > 0) {
+            data.orders.forEach(order => {
+                const tabBtn = document.createElement('button');
+                tabBtn.className = `order-tab-btn ${order.is_latest ? 'latest' : ''}`;
+                tabBtn.dataset.orderId = order.order_id;
+                tabBtn.dataset.loginType = order.login_type || "NT";
+                tabBtn.innerHTML = `
+                    <span>📄 ${order.title}</span>
+                    ${order.is_latest ? '<span class="latest-pill">अंतिम आदेश</span>' : ''}
+                `;
+                tabBtn.addEventListener('click', () => selectOrder(order.order_id, order.login_type || "NT"));
+                ordersListTabs.appendChild(tabBtn);
+            });
+        } else {
+            ordersListTabs.innerHTML = `<div style="padding: 10px; color: #888;">इस वाद के लिए कोई आदेश फाइल उपलब्ध नहीं है।</div>`;
+        }
+    }
+
+    async function selectOrder(orderId, loginType = "NT") {
+        currentOrderId = orderId;
+        currentLoginType = loginType;
+        
+        document.querySelectorAll('.order-tab-btn').forEach(btn => {
+            if (btn.dataset.orderId === orderId) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+
+        const activeOrderObj = currentCaseData.orders.find(o => o.order_id === orderId);
+        if (activeOrderObj) {
+            activeOrderBadge.textContent = activeOrderObj.title;
+        }
+
+        await fetchAndRenderOrder(orderId, loginType);
+    }
+
+    async function fetchAndRenderOrder(orderId, loginType = "NT") {
+        try {
+            const url = `/api/fetch-order?order_id=${orderId}&login_type=${loginType}&remove_qr=${removeSquareBarcode}&remove_disclaimer=${removeDisclaimer}`;
+            orderIframe.src = url;
+        } catch (err) {
+            console.error('Error rendering order:', err);
+        }
+    }
+
+    function triggerIframePrint() {
+        if (orderIframe && orderIframe.contentWindow) {
+            orderIframe.contentWindow.focus();
+            orderIframe.contentWindow.print();
+        }
+    }
+
+    function downloadCleanPdf() {
+        if (orderIframe && orderIframe.contentDocument) {
+            const docBody = orderIframe.contentDocument.body;
+            const opt = {
+                margin:       [10, 10, 10, 10],
+                filename:     `UP_VAAD_Order_${currentCaseData ? currentCaseData.computer_case_no : 'Case'}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            if (typeof html2pdf !== 'undefined') {
+                html2pdf().set(opt).from(docBody).save();
+            } else {
+                triggerIframePrint();
+            }
+        } else {
+            triggerIframePrint();
+        }
+    }
+
+    function showLoader(show, message = 'आंकड़े प्राप्त हो रहे हैं...') {
+        if (show) {
+            loader.querySelector('p').textContent = message;
+            loader.classList.remove('hidden');
+        } else {
+            loader.classList.add('hidden');
+        }
+    }
+});
