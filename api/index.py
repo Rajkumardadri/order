@@ -49,10 +49,22 @@ ORDER_TTL = 3600
 
 
 def safe_encode_url(url_str):
+    url_str = url_str.replace('&amp;', '&')
     parsed = urllib.parse.urlsplit(url_str)
     encoded_query = urllib.parse.quote(parsed.query, safe='=&%')
     encoded_path = urllib.parse.quote(parsed.path, safe='/')
     return urllib.parse.urlunsplit((parsed.scheme, parsed.netloc, encoded_path, encoded_query, parsed.fragment))
+
+
+def fetch_with_retry(opener, req, timeout=8, retries=2):
+    for attempt in range(retries):
+        try:
+            resp = opener.open(req, timeout=timeout)
+            return resp.read().decode('utf-8', errors='ignore')
+        except Exception as e:
+            if attempt == retries - 1:
+                raise e
+            time.sleep(0.5)
 
 
 def reformat_order_header_html(html_str):
@@ -201,14 +213,21 @@ def clean_order_document(html_str, remove_qr=True, remove_disclaimer=True):
 
 
 def live_search_vaad_case(case_auto_no):
+    case_auto_no = case_auto_no.strip().upper()
     now = time.time()
     if case_auto_no in CASE_CACHE:
         cached_time, cached_data = CASE_CACHE[case_auto_no]
         if now - cached_time < CACHE_TTL:
             return cached_data
 
+    cookie_jar = http.cookiejar.CookieJar()
+    opener = urllib.request.build_opener(
+        urllib.request.HTTPCookieProcessor(cookie_jar),
+        urllib.request.HTTPSHandler(context=ssl_ctx)
+    )
+
     get_req = urllib.request.Request('https://vaad.up.nic.in/Search_CaseAutoNo.aspx', headers=HEADERS)
-    html_get = opener.open(get_req, timeout=5).read().decode('utf-8', errors='ignore')
+    html_get = fetch_with_retry(opener, get_req, timeout=8, retries=2)
 
     vs_m = RE_VIEWSTATE.search(html_get)
     ev_m = RE_EVENTVAL.search(html_get)
@@ -229,7 +248,7 @@ def live_search_vaad_case(case_auto_no):
     }
     encoded_payload = urllib.parse.urlencode(payload).encode('utf-8')
     post_req = urllib.request.Request('https://vaad.up.nic.in/Search_CaseAutoNo.aspx', data=encoded_payload, headers=HEADERS)
-    html_post = opener.open(post_req, timeout=5).read().decode('utf-8', errors='ignore')
+    html_post = fetch_with_retry(opener, post_req, timeout=8, retries=2)
 
     casedetail_links = RE_CASEDETAIL.findall(html_post)
     if not casedetail_links:
@@ -239,7 +258,7 @@ def live_search_vaad_case(case_auto_no):
     detail_raw_url = "https://vaad.up.nic.in/" + raw_link
     detail_url = safe_encode_url(detail_raw_url)
 
-    detail_html = opener.open(urllib.request.Request(detail_url, headers=HEADERS), timeout=5).read().decode('utf-8', errors='ignore')
+    detail_html = fetch_with_retry(opener, urllib.request.Request(detail_url, headers=HEADERS), timeout=8, retries=2)
 
     case_no_m = re.search(r'cno=([^&]+)', detail_url)
     cyear_m = re.search(r'cyear=([^&]+)', detail_url)
@@ -268,7 +287,7 @@ def live_search_vaad_case(case_auto_no):
         gen_raw_url = "https://vaad.up.nic.in/" + gen_raw_link
         gen_url = safe_encode_url(gen_raw_url)
         try:
-            gen_html = opener.open(urllib.request.Request(gen_url, headers=HEADERS), timeout=4).read().decode('utf-8', errors='ignore')
+            gen_html = fetch_with_retry(opener, urllib.request.Request(gen_url, headers=HEADERS), timeout=7, retries=2)
             order_entries = RE_ORDERENTRY.findall(gen_html)
             if order_entries:
                 for idx, (date_str, lt, oid) in enumerate(order_entries):
@@ -284,7 +303,7 @@ def live_search_vaad_case(case_auto_no):
             else:
                 order_entries_nolt = RE_ORDERENTRY_NOLT.findall(gen_html)
                 ltype_m = re.search(r'ltype=([^&]+)', gen_url)
-                default_lt = ltype_m.group(1) if ltype_m else "T"
+                default_lt = ltype_m.group(1) if ltype_m else "NT"
                 for idx, (date_str, oid) in enumerate(order_entries_nolt):
                     is_latest = (idx == len(order_entries_nolt) - 1)
                     orders_list.append({
@@ -296,7 +315,7 @@ def live_search_vaad_case(case_auto_no):
                         "title": f"आदेश {idx + 1} (तिथि: {date_str})" + (" - अंतिम आदेश" if is_latest else "")
                     })
         except Exception as e:
-            print("Generate orders error:", e)
+            print("Generate orders warning:", e)
 
     if not orders_list:
         all_oids = RE_SINGLE_ORDER.findall(detail_html)
@@ -314,7 +333,7 @@ def live_search_vaad_case(case_auto_no):
         else:
             all_oids_nolt = RE_SINGLE_ORDER_NOLT.findall(detail_html)
             ltype_m = re.search(r'ltype=([^&]+)', detail_url)
-            default_lt = ltype_m.group(1) if ltype_m else "T"
+            default_lt = ltype_m.group(1) if ltype_m else "NT"
             for idx, oid in enumerate(all_oids_nolt):
                 is_latest = (idx == len(all_oids_nolt) - 1)
                 orders_list.append({
@@ -358,7 +377,7 @@ class handler(BaseHTTPRequestHandler):
         if path.startswith("/api/search"):
             case_no = query.get("case_no", [""])[0].strip().upper()
             if not case_no:
-                self.send_json_response({"error": "कृपया कंप्यूटरीकृत वाद संख्या दर्ज करें"}, status=400)
+                self.send_json_response({"success": False, "error": "कृपया कंप्यूटरीकृत वाद संख्या दर्ज करें"}, status=400)
                 return
 
             try:
@@ -370,11 +389,14 @@ class handler(BaseHTTPRequestHandler):
                     self.send_json_response({
                         "success": False,
                         "error": f"कंप्यूटरीकृत वाद संख्या '{case_no}' vaad.up.nic.in सर्वर पर उपलब्ध नहीं है।"
-                    }, status=404)
+                    }, status=200)
                     return
             except Exception as ex:
                 print("Live search exception:", ex)
-                self.send_json_response({"error": "vaad.up.nic.in सर्वर से लाइव डेटा प्राप्त करने में समस्या हुई।"}, status=500)
+                self.send_json_response({
+                    "success": False,
+                    "error": "vaad.up.nic.in सर्वर अत्यधिक व्यस्त है। कृपया 2 सेकंड बाद पुनः 'प्रदर्शित करें' दबाएं।"
+                }, status=200)
                 return
 
         if path.startswith("/api/fetch-order"):
