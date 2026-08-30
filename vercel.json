@@ -1,1 +1,25 @@
-﻿{"version": 2, "rewrites": [{"source": "/api/search", "destination": "/api/search.py"}, {"source": "/api/fetch-order", "destination": "/api/fetch_order.py"}, {"source": "/api/fetch_order", "destination": "/api/fetch_order.py"}, {"source": "/api/status", "destination": "/api/status.py"}, {"source": "/api/(.*)", "destination": "/api/index.py"}]}
+{
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/api/search",
+      "destination": "/api/search.py"
+    },
+    {
+      "source": "/api/fetch-order",
+      "destination": "/api/fetch_order.py"
+    },
+    {
+      "source": "/api/fetch_order",
+      "destination": "/api/fetch_order.py"
+    },
+    {
+      "source": "/api/status",
+      "destination": "/api/status.py"
+    },
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index.py"
+    }
+  ]
+}
