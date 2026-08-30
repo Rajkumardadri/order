@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Hind:wght@400;500;600;700&family=Mukta:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=2.1">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
@@ -40,33 +40,13 @@
                 <div class="input-group">
                     <label for="caseAutoNo">कंप्यूटरीकृत वाद संख्या (Computerized Case No) <span class="required">*</span></label>
                     <div class="input-wrapper">
-                        <input type="text" id="caseAutoNo" placeholder="कंप्यूटरीकृत वाद संख्या दर्ज करें..." required autocomplete="off">
+                        <input type="text" id="caseAutoNo" placeholder="यहाँ कंप्यूटरीकृत वाद संख्या दर्ज करें (जैसे: T2026...)" value="" required autocomplete="off">
                         <button type="submit" class="btn btn-primary" id="searchBtn">
                             <span>प्रदर्शित करें (Search Live VAAD)</span>
                         </button>
                     </div>
                 </div>
             </form>
-
-            <div class="quick-options">
-                <div class="filter-toggle">
-                    <label class="switch">
-                        <input type="checkbox" id="removeQrToggle" checked>
-                        <span class="slider round"></span>
-                    </label>
-                    <span class="toggle-label">✨ स्क्वायर क्यूआर बारकोड हटाएं (No QR Code)</span>
-                </div>
-
-                <div class="filter-toggle">
-                    <label class="switch">
-                        <input type="checkbox" id="removeDisclaimerToggle" checked>
-                        <span class="slider round"></span>
-                    </label>
-                    <span class="toggle-label">🚫 नीचे से Disclaimer हटाएं (No Disclaimer)</span>
-                </div>
-                
-
-            </div>
         </section>
 
         <!-- Loader -->
@@ -80,11 +60,11 @@
             <div class="summary-header">
                 <div class="title-wrap">
                     <h3>वाद का विवरण एवं सभी आदेश (Case Details & Orders)</h3>
-                    <span class="badge badge-success" id="caseStatusBadge">निस्तारित</span>
+                    <span class="badge badge-success" id="caseStatusBadge">-</span>
                 </div>
                 <div class="action-buttons">
                     <button class="btn btn-danger" id="printLatestDirectBtn">
-                        ⚡ अंतिम आदेश सीधे प्रिंट करें
+                        ⚡ पहला आदेश सीधे प्रिंट करें
                     </button>
                 </div>
             </div>
@@ -142,7 +122,6 @@
                 <div class="viewer-toolbar">
                     <div class="toolbar-title">
                         <span class="badge badge-info" id="activeOrderBadge">आदेश चुनें</span>
-                        <span class="barcode-status-indicator" id="barcodeStatusText">✅ स्क्वायर क्यूआर बारकोड एवं Disclaimer हटा दिया गया है</span>
                     </div>
                     
                     <div class="toolbar-actions">
@@ -167,6 +146,6 @@
         <p class="sub-footer">Live Order Proxy Engine - No Barcode & No Disclaimer Print Generator.</p>
     </footer>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=2.1"></script>
 </body>
 </html>

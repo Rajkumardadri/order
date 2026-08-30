@@ -1,5 +1,10 @@
 @echo off
-title UP VAAD Clean Order Server (Port 9091)
-echo Starting UP VAAD Clean Order Local Proxy Server on Port 9091...
-python server.py
+echo =========================================================
+echo UP VAAD Court Order Clean Print Server & Web Application
+echo =========================================================
+echo Starting Python backend server on http://localhost:8080 ...
+echo.
+
+"C:\Users\ss\AppData\Roaming\uv\python\cpython-3.13.5-windows-x86_64-none\python.exe" server.py
+
 pause
