@@ -1,9 +1,11 @@
 {
   "version": 2,
-  "rewrites": [
+  "name": "questionbank-hub",
+  "cleanUrls": true,
+  "routes": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api/index.py"
+      "src": "/(.*)",
+      "dest": "/$1"
     }
   ]
 }

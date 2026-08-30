@@ -1,0 +1,12 @@
+{
+  "name": "questionbank-webapp",
+  "version": "1.0.0",
+  "description": "QuestionBank Hub - Missed questions practice, PDF question extractor, daily reports & smart decks",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve ."
+  },
+  "keywords": ["testbook", "firebase", "vercel", "mcq", "flashcards"],
+  "author": "",
+  "license": "MIT"
+}
