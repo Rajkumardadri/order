@@ -171,7 +171,22 @@ SAMPLE_ORDERS = {
 
 
 def safe_encode_url(url_str):
-    return urllib.parse.quote(url_str, safe=':/?&=%')
+    url_str = url_str.replace('&amp;', '&')
+    parsed = urllib.parse.urlsplit(url_str)
+    encoded_query = urllib.parse.quote(parsed.query, safe='=&%')
+    encoded_path = urllib.parse.quote(parsed.path, safe='/')
+    return urllib.parse.urlunsplit((parsed.scheme, parsed.netloc, encoded_path, encoded_query, parsed.fragment))
+
+
+def fetch_with_retry(opener, req, timeout=8, retries=2):
+    for attempt in range(retries):
+        try:
+            resp = opener.open(req, timeout=timeout)
+            return resp.read().decode('utf-8', errors='ignore')
+        except Exception as e:
+            if attempt == retries - 1:
+                raise e
+            time.sleep(0.5)
 
 
 def reformat_order_header_html(html_str):
@@ -311,12 +326,19 @@ def clean_order_document(html_str, remove_qr=True, remove_disclaimer=True):
 
 
 def live_search_vaad_case(case_auto_no):
+    case_auto_no = case_auto_no.strip().upper()
     if case_auto_no in RESPONSE_CACHE:
         return RESPONSE_CACHE[case_auto_no]
 
+    cookie_jar = http.cookiejar.CookieJar()
+    opener = urllib.request.build_opener(
+        urllib.request.HTTPCookieProcessor(cookie_jar),
+        urllib.request.HTTPSHandler(context=ssl_ctx)
+    )
+
     # 1. GET search page
     get_req = urllib.request.Request('https://vaad.up.nic.in/Search_CaseAutoNo.aspx', headers=HEADERS)
-    html_get = opener.open(get_req, timeout=12).read().decode('utf-8', errors='ignore')
+    html_get = fetch_with_retry(opener, get_req, timeout=8, retries=2)
 
     vs_m = re.search(r'id="__VIEWSTATE"\s+value="([^"]*)"', html_get)
     ev_m = re.search(r'id="__EVENTVALIDATION"\s+value="([^"]*)"', html_get)
@@ -338,7 +360,7 @@ def live_search_vaad_case(case_auto_no):
     }
     encoded_payload = urllib.parse.urlencode(payload).encode('utf-8')
     post_req = urllib.request.Request('https://vaad.up.nic.in/Search_CaseAutoNo.aspx', data=encoded_payload, headers=HEADERS)
-    html_post = opener.open(post_req, timeout=12).read().decode('utf-8', errors='ignore')
+    html_post = fetch_with_retry(opener, post_req, timeout=8, retries=2)
 
     casedetail_links = re.findall(r'href="([^"]*case_all_detail\.aspx[^"]+)"', html_post, re.IGNORECASE)
     if not casedetail_links:
@@ -349,7 +371,7 @@ def live_search_vaad_case(case_auto_no):
     detail_url = safe_encode_url(detail_raw_url)
 
     # 3. GET case_all_detail.aspx
-    detail_html = opener.open(urllib.request.Request(detail_url, headers=HEADERS), timeout=12).read().decode('utf-8', errors='ignore')
+    detail_html = fetch_with_retry(opener, urllib.request.Request(detail_url, headers=HEADERS), timeout=8, retries=2)
 
     case_no_m = re.search(r'cno=([^&]+)', detail_url)
     cyear_m = re.search(r'cyear=([^&]+)', detail_url)
@@ -383,27 +405,29 @@ def live_search_vaad_case(case_auto_no):
         default_ltype = ltype_m.group(1) if ltype_m else "NT"
         
         gen_url = safe_encode_url(gen_raw_url)
-        gen_html = opener.open(urllib.request.Request(gen_url, headers=HEADERS), timeout=12).read().decode('utf-8', errors='ignore')
+        try:
+            gen_html = fetch_with_retry(opener, urllib.request.Request(gen_url, headers=HEADERS), timeout=7, retries=2)
+            order_entries = re.findall(r'(\(\d+\))\s*</td>\s*<td[^>]*>\s*<strong>आदेश तिथि:- &nbsp;&nbsp;&nbsp;</strong>([\d/]+).*?Print_Court_Order_External\.aspx\?[^"\']*login_type=([^&"\']+)[^"\']*order_id=(\d+)', gen_html, re.DOTALL)
+            if not order_entries:
+                order_entries = re.findall(r'(\(\d+\))\s*</td>\s*<td[^>]*>\s*<strong>आदेश तिथि:- &nbsp;&nbsp;&nbsp;</strong>([\d/]+).*?order_id=(\d+)', gen_html, re.DOTALL)
+                order_entries = [(no, date, default_ltype, oid) for (no, date, oid) in order_entries]
 
-        order_entries = re.findall(r'(\(\d+\))\s*</td>\s*<td[^>]*>\s*<strong>आदेश तिथि:- &nbsp;&nbsp;&nbsp;</strong>([\d/]+).*?Print_Court_Order_External\.aspx\?[^"\']*login_type=([^&"\']+)[^"\']*order_id=(\d+)', gen_html, re.DOTALL)
-        if not order_entries:
-            order_entries = re.findall(r'(\(\d+\))\s*</td>\s*<td[^>]*>\s*<strong>आदेश तिथि:- &nbsp;&nbsp;&nbsp;</strong>([\d/]+).*?order_id=(\d+)', gen_html, re.DOTALL)
-            order_entries = [(no, date, default_ltype, oid) for (no, date, oid) in order_entries]
+            for idx, item in enumerate(order_entries):
+                no_str, date_str = item[0], item[1]
+                ltype = item[2] if len(item) > 3 else default_ltype
+                oid = item[3] if len(item) > 3 else item[2]
 
-        for idx, item in enumerate(order_entries):
-            no_str, date_str = item[0], item[1]
-            ltype = item[2] if len(item) > 3 else default_ltype
-            oid = item[3] if len(item) > 3 else item[2]
-
-            is_latest = (idx == len(order_entries) - 1)
-            orders_list.append({
-                "order_no": idx + 1,
-                "order_date": date_str,
-                "order_id": oid,
-                "login_type": ltype,
-                "is_latest": is_latest,
-                "title": f"आदेश {idx + 1} (तिथि: {date_str})" + (" - अंतिम आदेश" if is_latest else "")
-            })
+                is_latest = (idx == len(order_entries) - 1)
+                orders_list.append({
+                    "order_no": idx + 1,
+                    "order_date": date_str,
+                    "order_id": oid,
+                    "login_type": ltype,
+                    "is_latest": is_latest,
+                    "title": f"आदेश {idx + 1} (तिथि: {date_str})" + (" - अंतिम आदेश" if is_latest else "")
+                })
+        except Exception as e:
+            print("Generate orders error:", e)
 
     if not orders_list:
         single_order = re.search(r'Print_Court_Order_External\.aspx\?[^"\']*login_type=([^&"\']+)[^"\']*order_id=(\d+)', detail_html)
