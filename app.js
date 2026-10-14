@@ -138,7 +138,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 ordersListTabs.appendChild(tabBtn);
             });
         } else {
-            ordersListTabs.innerHTML = `<div style="padding: 10px; color: #888;">इस वाद के लिए कोई आदेश फाइल उपलब्ध नहीं है।</div>`;
+            ordersListTabs.innerHTML = `<div style="padding: 12px 16px; background: #fff3cd; color: #856404; border: 1px solid #ffeeba; border-radius: 6px; font-weight: 500; font-size: 15px;">ℹ️ यह वाद वर्तमान में '<strong>${data.status || 'विचाराधीन'}</strong>' स्थिति में है। न्यायालय द्वारा अभी कोई आदेश अपलोड नहीं किया गया है।</div>`;
+            activeOrderBadge.textContent = 'कोई आदेश अपलोड नहीं';
+            orderIframe.src = 'about:blank';
         }
     }
 
