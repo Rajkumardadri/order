@@ -91,8 +91,8 @@ def reformat_order_header_html(html_str):
     return re.sub(pattern, replace_header_td, cleaned, flags=re.DOTALL | re.IGNORECASE)
 
 def clean_order_document(html_str, remove_qr=True, remove_disclaimer=True):
-    cleaned = html_str.replace('src="BarCode_Print.aspx', 'src="https://vaad.up.nic.in/judgement/BarCode_Print.aspx')
-    cleaned = cleaned.replace('src="../QRCodeJs/', 'src="https://vaad.up.nic.in/QRCodeJs/')
+    cleaned = html_str.replace('src="BarCode_Print.aspx', 'src="https://vaad.up.gov.in/judgement/BarCode_Print.aspx')
+    cleaned = cleaned.replace('src="../QRCodeJs/', 'src="https://vaad.up.gov.in/QRCodeJs/')
 
     if remove_qr:
         cleaned = re.sub(r'<div id="qrcode">.*?</div>', '<div id="qrcode"></div>', cleaned, flags=re.DOTALL)
@@ -142,10 +142,10 @@ class handler(BaseHTTPRequestHandler):
         elif login_type == "NT": types_to_try = ["NT", "T"]
 
         def _fetch_order_worker(lt):
-            target_url = f"https://vaad.up.nic.in/judgement/Print_Court_Order_External.aspx?login_type={lt}&order_id={order_id}"
+            target_url = f"https://vaad.up.gov.in/judgement/Print_Court_Order_External.aspx?login_type={lt}&order_id={order_id}"
             req = urllib.request.Request(target_url, headers={'User-Agent': 'Mozilla/5.0'})
             try:
-                with urllib.request.urlopen(req, context=ssl_ctx, timeout=3) as resp:
+                with urllib.request.urlopen(req, context=ssl_ctx, timeout=6) as resp:
                     content = resp.read().decode('utf-8', errors='ignore')
                     if 'अपलोड नहीं किया गया' not in content and 'अपलोड करें' not in content and len(content) > 500:
                         return content

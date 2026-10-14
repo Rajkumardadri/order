@@ -21,8 +21,8 @@ HEADERS = {
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
     'Accept-Language': 'hi,en-US;q=0.9,en;q=0.8',
     'Connection': 'keep-alive',
-    'Origin': 'https://vaad.up.nic.in',
-    'Referer': 'https://vaad.up.nic.in/Search_CaseAutoNo.aspx'
+    'Origin': 'https://vaad.up.gov.in',
+    'Referer': 'https://vaad.up.gov.in/Search_CaseAutoNo.aspx'
 }
 
 # Regular expressions
@@ -176,8 +176,8 @@ def reformat_order_header_html(html_str):
 
 
 def clean_order_document(html_str, remove_qr=True, remove_disclaimer=True):
-    cleaned = html_str.replace('src="BarCode_Print.aspx', 'src="https://vaad.up.nic.in/judgement/BarCode_Print.aspx')
-    cleaned = cleaned.replace('src="../QRCodeJs/', 'src="https://vaad.up.nic.in/QRCodeJs/')
+    cleaned = html_str.replace('src="BarCode_Print.aspx', 'src="https://vaad.up.gov.in/judgement/BarCode_Print.aspx')
+    cleaned = cleaned.replace('src="../QRCodeJs/', 'src="https://vaad.up.gov.in/QRCodeJs/')
 
     if remove_qr:
         cleaned = re.sub(r'<div id="qrcode">.*?</div>', '<div id="qrcode"></div>', cleaned, flags=re.DOTALL)
@@ -227,8 +227,8 @@ def live_search_vaad_case(case_auto_no):
     )
 
     # 1. GET search page
-    get_req = urllib.request.Request('https://vaad.up.nic.in/Search_CaseAutoNo.aspx', headers=HEADERS)
-    html_get = fetch_with_retry(opener, get_req, timeout=4, retries=2)
+    get_req = urllib.request.Request('https://vaad.up.gov.in/Search_CaseAutoNo.aspx', headers=HEADERS)
+    html_get = fetch_with_retry(opener, get_req, timeout=6, retries=2)
 
     vs_m = RE_VIEWSTATE.search(html_get)
     ev_m = RE_EVENTVAL.search(html_get)
@@ -249,15 +249,15 @@ def live_search_vaad_case(case_auto_no):
         'ctl00$ContentPlaceHolder_revcourt$btn_submit': 'प्रदर्शित करें'
     }
     encoded_payload = urllib.parse.urlencode(payload).encode('utf-8')
-    post_req = urllib.request.Request('https://vaad.up.nic.in/Search_CaseAutoNo.aspx', data=encoded_payload, headers=HEADERS)
-    html_post = fetch_with_retry(opener, post_req, timeout=4, retries=2)
+    post_req = urllib.request.Request('https://vaad.up.gov.in/Search_CaseAutoNo.aspx', data=encoded_payload, headers=HEADERS)
+    html_post = fetch_with_retry(opener, post_req, timeout=6, retries=2)
 
     casedetail_links = RE_CASEDETAIL.findall(html_post)
     if not casedetail_links:
         return None
 
     raw_link = casedetail_links[0].replace('./', '').replace('&amp;', '&')
-    detail_raw_url = "https://vaad.up.nic.in/" + raw_link
+    detail_raw_url = "https://vaad.up.gov.in/" + raw_link
     detail_url = safe_encode_url(detail_raw_url)
 
     cno_m = re.search(r'cno=([^&]+)', detail_raw_url)
@@ -273,14 +273,14 @@ def live_search_vaad_case(case_auto_no):
     login_cd = login_cd_m.group(1) if login_cd_m else ""
     ltype = "T" if login_cd.startswith("T") else "NT"
 
-    gen_raw_url = f"https://vaad.up.nic.in/BOR/Generate_Orders.aspx?act_cd={act_cd}&section_cd={section_cd}&cno={cno}&lcd={login_cd}&cyear={cyear}&ltype={ltype}&compu_case_no={case_auto_no}&petname=&resname=&cd=1"
+    gen_raw_url = f"https://vaad.up.gov.in/BOR/Generate_Orders.aspx?act_cd={act_cd}&section_cd={section_cd}&cno={cno}&lcd={login_cd}&cyear={cyear}&ltype={ltype}&compu_case_no={case_auto_no}&petname=&resname=&cd=1"
     gen_url = safe_encode_url(gen_raw_url)
 
     from concurrent.futures import ThreadPoolExecutor
 
     def _fetch_url(u):
         try:
-            return opener.open(urllib.request.Request(u, headers=HEADERS), timeout=4).read().decode('utf-8', errors='ignore')
+            return opener.open(urllib.request.Request(u, headers=HEADERS), timeout=6).read().decode('utf-8', errors='ignore')
         except Exception:
             return ""
 
@@ -333,6 +333,40 @@ def live_search_vaad_case(case_auto_no):
                     "is_latest": is_latest,
                     "title": f"आदेश {idx + 1} (तिथि: {date_str})" + (" - अंतिम आदेश" if is_latest else "")
                 })
+
+    if not orders_list and detail_html:
+        gen_orders_link = re.search(r'href="([^"]*BOR/Generate_Orders\.aspx[^"]+)"', detail_html, re.IGNORECASE)
+        if gen_orders_link:
+            g_raw = "https://vaad.up.gov.in/" + gen_orders_link.group(1).replace('./', '').replace('&amp;', '&')
+            g_url = safe_encode_url(g_raw)
+            try:
+                gen_html_fb = opener.open(urllib.request.Request(g_url, headers=HEADERS), timeout=8).read().decode('utf-8', errors='ignore')
+                order_entries_fb = RE_ORDERENTRY.findall(gen_html_fb)
+                if order_entries_fb:
+                    for idx, (date_str, lt, oid) in enumerate(order_entries_fb):
+                        is_latest = (idx == len(order_entries_fb) - 1)
+                        orders_list.append({
+                            "order_no": idx + 1,
+                            "order_date": date_str,
+                            "order_id": oid,
+                            "login_type": lt,
+                            "is_latest": is_latest,
+                            "title": f"आदेश {idx + 1} (तिथि: {date_str})" + (" - अंतिम आदेश" if is_latest else "")
+                        })
+                else:
+                    order_entries_nolt_fb = RE_ORDERENTRY_NOLT.findall(gen_html_fb)
+                    for idx, (date_str, oid) in enumerate(order_entries_nolt_fb):
+                        is_latest = (idx == len(order_entries_nolt_fb) - 1)
+                        orders_list.append({
+                            "order_no": idx + 1,
+                            "order_date": date_str,
+                            "order_id": oid,
+                            "login_type": ltype,
+                            "is_latest": is_latest,
+                            "title": f"आदेश {idx + 1} (तिथि: {date_str})" + (" - अंतिम आदेश" if is_latest else "")
+                        })
+            except Exception:
+                pass
 
     if not orders_list and detail_html:
         all_oids = RE_SINGLE_ORDER.findall(detail_html)
@@ -403,14 +437,14 @@ class handler(BaseHTTPRequestHandler):
                 else:
                     self.send_json_response({
                         "success": False,
-                        "error": f"कंप्यूटरीकृत वाद संख्या '{case_no}' vaad.up.nic.in सर्वर पर उपलब्ध नहीं है।"
+                        "error": f"कंप्यूटरीकृत वाद संख्या '{case_no}' vaad.up.gov.in सर्वर पर उपलब्ध नहीं है।"
                     }, status=200)
                     return
             except Exception as ex:
                 print("Live search exception:", ex)
                 self.send_json_response({
                     "success": False,
-                    "error": "vaad.up.nic.in सर्वर अत्यधिक व्यस्त है। कृपया 2 सेकंड बाद पुनः 'प्रदर्शित करें' दबाएं।"
+                    "error": "vaad.up.gov.in सर्वर अत्यधिक व्यस्त है। कृपया 2 सेकंड बाद पुनः 'प्रदर्शित करें' दबाएं।"
                 }, status=200)
                 return
 
@@ -442,10 +476,10 @@ class handler(BaseHTTPRequestHandler):
             from concurrent.futures import ThreadPoolExecutor
 
             def _fetch_order_worker(lt):
-                target_url = f"https://vaad.up.nic.in/judgement/Print_Court_Order_External.aspx?login_type={lt}&order_id={order_id}"
+                target_url = f"https://vaad.up.gov.in/judgement/Print_Court_Order_External.aspx?login_type={lt}&order_id={order_id}"
                 req = urllib.request.Request(target_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
                 try:
-                    with urllib.request.urlopen(req, context=ssl_ctx, timeout=3) as resp:
+                    with urllib.request.urlopen(req, context=ssl_ctx, timeout=6) as resp:
                         content = resp.read().decode('utf-8', errors='ignore')
                         if 'अपलोड नहीं किया गया' not in content and 'अपलोड करें' not in content and len(content) > 500:
                             return content

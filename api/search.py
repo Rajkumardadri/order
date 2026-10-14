@@ -15,8 +15,8 @@ HEADERS = {
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
     'Accept-Language': 'hi,en-US;q=0.9,en;q=0.8',
     'Connection': 'keep-alive',
-    'Origin': 'https://vaad.up.nic.in',
-    'Referer': 'https://vaad.up.nic.in/Search_CaseAutoNo.aspx'
+    'Origin': 'https://vaad.up.gov.in',
+    'Referer': 'https://vaad.up.gov.in/Search_CaseAutoNo.aspx'
 }
 
 RE_VIEWSTATE = re.compile(r'id="__VIEWSTATE"\s+value="([^"]*)"')
@@ -40,7 +40,7 @@ def safe_encode_url(url_str):
     encoded_path = urllib.parse.quote(parsed.path, safe='/')
     return urllib.parse.urlunsplit((parsed.scheme, parsed.netloc, encoded_path, encoded_query, parsed.fragment))
 
-def fetch_with_retry(opener, req, timeout=4, retries=2):
+def fetch_with_retry(opener, req, timeout=6, retries=2):
     for attempt in range(retries):
         try:
             resp = opener.open(req, timeout=timeout)
@@ -58,8 +58,8 @@ def live_search_vaad_case(case_auto_no):
         urllib.request.HTTPSHandler(context=ssl_ctx)
     )
 
-    get_req = urllib.request.Request('https://vaad.up.nic.in/Search_CaseAutoNo.aspx', headers=HEADERS)
-    html_get = fetch_with_retry(opener, get_req, timeout=4, retries=2)
+    get_req = urllib.request.Request('https://vaad.up.gov.in/Search_CaseAutoNo.aspx', headers=HEADERS)
+    html_get = fetch_with_retry(opener, get_req, timeout=6, retries=2)
 
     vs = RE_VIEWSTATE.search(html_get).group(1)
     ev = RE_EVENTVAL.search(html_get).group(1)
@@ -76,15 +76,15 @@ def live_search_vaad_case(case_auto_no):
         'ctl00$ContentPlaceHolder_revcourt$btn_submit': 'प्रदर्शित करें'
     }
     encoded_payload = urllib.parse.urlencode(payload).encode('utf-8')
-    post_req = urllib.request.Request('https://vaad.up.nic.in/Search_CaseAutoNo.aspx', data=encoded_payload, headers=HEADERS)
-    html_post = fetch_with_retry(opener, post_req, timeout=4, retries=2)
+    post_req = urllib.request.Request('https://vaad.up.gov.in/Search_CaseAutoNo.aspx', data=encoded_payload, headers=HEADERS)
+    html_post = fetch_with_retry(opener, post_req, timeout=6, retries=2)
 
     casedetail_links = RE_CASEDETAIL.findall(html_post)
     if not casedetail_links:
         return None
 
     raw_link = casedetail_links[0].replace('./', '').replace('&amp;', '&')
-    detail_raw_url = "https://vaad.up.nic.in/" + raw_link
+    detail_raw_url = "https://vaad.up.gov.in/" + raw_link
     detail_url = safe_encode_url(detail_raw_url)
 
     cno_m = re.search(r'cno=([^&]+)', detail_raw_url)
@@ -100,12 +100,12 @@ def live_search_vaad_case(case_auto_no):
     login_cd = login_cd_m.group(1) if login_cd_m else ""
     ltype = "T" if login_cd.startswith("T") else "NT"
 
-    gen_raw_url = f"https://vaad.up.nic.in/BOR/Generate_Orders.aspx?act_cd={act_cd}&section_cd={section_cd}&cno={cno}&lcd={login_cd}&cyear={cyear}&ltype={ltype}&compu_case_no={case_auto_no}&petname=&resname=&cd=1"
+    gen_raw_url = f"https://vaad.up.gov.in/BOR/Generate_Orders.aspx?act_cd={act_cd}&section_cd={section_cd}&cno={cno}&lcd={login_cd}&cyear={cyear}&ltype={ltype}&compu_case_no={case_auto_no}&petname=&resname=&cd=1"
     gen_url = safe_encode_url(gen_raw_url)
 
     def _fetch_url(u):
         try:
-            return opener.open(urllib.request.Request(u, headers=HEADERS), timeout=4).read().decode('utf-8', errors='ignore')
+            return opener.open(urllib.request.Request(u, headers=HEADERS), timeout=8).read().decode('utf-8', errors='ignore')
         except Exception:
             return ""
 
@@ -158,6 +158,40 @@ def live_search_vaad_case(case_auto_no):
                     "is_latest": is_latest,
                     "title": f"आदेश {idx + 1} (तिथि: {date_str})" + (" - अंतिम आदेश" if is_latest else "")
                 })
+
+    if not orders_list and detail_html:
+        gen_orders_link = re.search(r'href="([^"]*BOR/Generate_Orders\.aspx[^"]+)"', detail_html, re.IGNORECASE)
+        if gen_orders_link:
+            g_raw = "https://vaad.up.gov.in/" + gen_orders_link.group(1).replace('./', '').replace('&amp;', '&')
+            g_url = safe_encode_url(g_raw)
+            try:
+                gen_html_fb = opener.open(urllib.request.Request(g_url, headers=HEADERS), timeout=8).read().decode('utf-8', errors='ignore')
+                order_entries_fb = RE_ORDERENTRY.findall(gen_html_fb)
+                if order_entries_fb:
+                    for idx, (date_str, lt, oid) in enumerate(order_entries_fb):
+                        is_latest = (idx == len(order_entries_fb) - 1)
+                        orders_list.append({
+                            "order_no": idx + 1,
+                            "order_date": date_str,
+                            "order_id": oid,
+                            "login_type": lt,
+                            "is_latest": is_latest,
+                            "title": f"आदेश {idx + 1} (तिथि: {date_str})" + (" - अंतिम आदेश" if is_latest else "")
+                        })
+                else:
+                    order_entries_nolt_fb = RE_ORDERENTRY_NOLT.findall(gen_html_fb)
+                    for idx, (date_str, oid) in enumerate(order_entries_nolt_fb):
+                        is_latest = (idx == len(order_entries_nolt_fb) - 1)
+                        orders_list.append({
+                            "order_no": idx + 1,
+                            "order_date": date_str,
+                            "order_id": oid,
+                            "login_type": ltype,
+                            "is_latest": is_latest,
+                            "title": f"आदेश {idx + 1} (तिथि: {date_str})" + (" - अंतिम आदेश" if is_latest else "")
+                        })
+            except Exception:
+                pass
 
     if not orders_list and detail_html:
         all_oids = RE_SINGLE_ORDER.findall(detail_html)
@@ -216,9 +250,9 @@ class handler(BaseHTTPRequestHandler):
             if live_data:
                 self.send_json({"success": True, "source": "live_nic_server", "data": live_data}, 200)
             else:
-                self.send_json({"success": False, "error": f"कंप्यूटरीकृत वाद संख्या '{case_no}' vaad.up.nic.in सर्वर पर उपलब्ध नहीं है।"}, 200)
+                self.send_json({"success": False, "error": f"कंप्यूटरीकृत वाद संख्या '{case_no}' vaad.up.gov.in सर्वर पर उपलब्ध नहीं है।"}, 200)
         except Exception as ex:
-            self.send_json({"success": False, "error": "सरकारी सर्वर (vaad.up.nic.in) व्यस्त है। कृपया 2 सेकंड बाद पुनः प्रयास करें।"}, 200)
+            self.send_json({"success": False, "error": "सरकारी सर्वर (vaad.up.gov.in) व्यस्त है। कृपया 2 सेकंड बाद पुनः प्रयास करें।"}, 200)
 
     def send_json(self, data, status=200):
         self.send_response(status)
