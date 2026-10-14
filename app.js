@@ -78,7 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function performSearch(caseNo) {
-        showLoader(true, `vaad.up.nic.in से वाद '${caseNo}' का संपूर्ण विवरण एवं आदेश खोजा जा रहा है...`);
+        showLoader(true, `vaad.up.gov.in से वाद '${caseNo}' का संपूर्ण विवरण एवं आदेश खोजा जा रहा है...`);
         caseSummarySection.classList.add('hidden');
 
         try {
@@ -108,7 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (err) {
             console.error('Search error:', err);
             showLoader(false);
-            alert('सरकारी सर्वर (vaad.up.nic.in) व्यस्त है या संपर्क नहीं हो सका। कृपया पुनः प्रयास करें।');
+            alert('सरकारी सर्वर (vaad.up.gov.in) व्यस्त है या संपर्क नहीं हो सका। कृपया पुनः प्रयास करें।');
         }
     }
 
