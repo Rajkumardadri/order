@@ -26,8 +26,8 @@ HEADERS = {
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
     'Accept-Language': 'hi,en-US;q=0.9,en;q=0.8',
     'Connection': 'keep-alive',
-    'Origin': 'https://vaad.up.nic.in',
-    'Referer': 'https://vaad.up.nic.in/Search_CaseAutoNo.aspx'
+    'Origin': 'https://vaad.up.gov.in',
+    'Referer': 'https://vaad.up.gov.in/Search_CaseAutoNo.aspx'
 }
 
 SAMPLE_CASES = {
@@ -87,7 +87,7 @@ OFFICIAL_ORDER_TEMPLATE_1 = """<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Tran
         <thead>
             <tr>
                 <td align="right" valign="top">
-                    <img id="barcode_img" src="https://vaad.up.nic.in/judgement/BarCode_Print.aspx?code=T202411270212200" alt="BarCode" onerror="this.style.display='none'" />
+                    <img id="barcode_img" src="https://vaad.up.gov.in/judgement/BarCode_Print.aspx?code=T202411270212200" alt="BarCode" onerror="this.style.display='none'" />
                 </td>
             </tr>
             <tr>
@@ -138,7 +138,7 @@ OFFICIAL_ORDER_TEMPLATE_2 = """<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Tran
         <thead>
             <tr>
                 <td align="right" valign="top">
-                    <img id="barcode_img" src="https://vaad.up.nic.in/judgement/BarCode_Print.aspx?code=T202411270212200" alt="BarCode" onerror="this.style.display='none'" />
+                    <img id="barcode_img" src="https://vaad.up.gov.in/judgement/BarCode_Print.aspx?code=T202411270212200" alt="BarCode" onerror="this.style.display='none'" />
                 </td>
             </tr>
             <tr>
@@ -290,8 +290,8 @@ def reformat_order_header_html(html_str):
 
 
 def clean_order_document(html_str, remove_qr=True, remove_disclaimer=True):
-    cleaned = html_str.replace('src="BarCode_Print.aspx', 'src="https://vaad.up.nic.in/judgement/BarCode_Print.aspx')
-    cleaned = cleaned.replace('src="../QRCodeJs/', 'src="https://vaad.up.nic.in/QRCodeJs/')
+    cleaned = html_str.replace('src="BarCode_Print.aspx', 'src="https://vaad.up.gov.in/judgement/BarCode_Print.aspx')
+    cleaned = cleaned.replace('src="../QRCodeJs/', 'src="https://vaad.up.gov.in/QRCodeJs/')
     cleaned = reformat_order_header_html(cleaned)
 
     if remove_qr:
@@ -337,7 +337,7 @@ def live_search_vaad_case(case_auto_no):
     )
 
     # 1. GET search page
-    get_req = urllib.request.Request('https://vaad.up.nic.in/Search_CaseAutoNo.aspx', headers=HEADERS)
+    get_req = urllib.request.Request('https://vaad.up.gov.in/Search_CaseAutoNo.aspx', headers=HEADERS)
     html_get = fetch_with_retry(opener, get_req, timeout=8, retries=2)
 
     vs_m = re.search(r'id="__VIEWSTATE"\s+value="([^"]*)"', html_get)
@@ -359,7 +359,7 @@ def live_search_vaad_case(case_auto_no):
         'ctl00$ContentPlaceHolder_revcourt$btn_submit': 'प्रदर्शित करें'
     }
     encoded_payload = urllib.parse.urlencode(payload).encode('utf-8')
-    post_req = urllib.request.Request('https://vaad.up.nic.in/Search_CaseAutoNo.aspx', data=encoded_payload, headers=HEADERS)
+    post_req = urllib.request.Request('https://vaad.up.gov.in/Search_CaseAutoNo.aspx', data=encoded_payload, headers=HEADERS)
     html_post = fetch_with_retry(opener, post_req, timeout=8, retries=2)
 
     casedetail_links = re.findall(r'href="([^"]*case_all_detail\.aspx[^"]+)"', html_post, re.IGNORECASE)
@@ -367,7 +367,7 @@ def live_search_vaad_case(case_auto_no):
         return None
 
     raw_link = casedetail_links[0].replace('./', '').replace('&amp;', '&')
-    detail_raw_url = "https://vaad.up.nic.in/" + raw_link
+    detail_raw_url = "https://vaad.up.gov.in/" + raw_link
     detail_url = safe_encode_url(detail_raw_url)
 
     # 3. GET case_all_detail.aspx
@@ -398,7 +398,7 @@ def live_search_vaad_case(case_auto_no):
     
     if gen_orders_link:
         gen_raw_link = gen_orders_link.group(1).replace('./', '').replace('&amp;', '&')
-        gen_raw_url = "https://vaad.up.nic.in/" + gen_raw_link
+        gen_raw_url = "https://vaad.up.gov.in/" + gen_raw_link
         
         # Extract default login_type from gen_raw_url if present
         ltype_m = re.search(r'ltype=([^&]+)', gen_raw_url)
@@ -470,7 +470,7 @@ def fetch_live_order_html(order_id, preferred_ltype="NT"):
 
     def _worker(ltype):
         try:
-            target_url = f"https://vaad.up.nic.in/judgement/Print_Court_Order_External.aspx?login_type={ltype}&order_id={order_id}"
+            target_url = f"https://vaad.up.gov.in/judgement/Print_Court_Order_External.aspx?login_type={ltype}&order_id={order_id}"
             req = urllib.request.Request(target_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
             with urllib.request.urlopen(req, context=ssl_ctx, timeout=3) as resp:
                 html = resp.read().decode('utf-8', errors='ignore')
@@ -518,7 +518,7 @@ class VAADProxyHandler(http.server.SimpleHTTPRequestHandler):
                 else:
                     self.send_json_response({
                         "success": False,
-                        "error": f"कंप्यूटरीकृत वाद संख्या '{case_no}' vaad.up.nic.in सर्वर पर उपलब्ध नहीं है।"
+                        "error": f"कंप्यूटरीकृत वाद संख्या '{case_no}' vaad.up.gov.in सर्वर पर उपलब्ध नहीं है।"
                     }, status=404)
                     return
             except Exception as ex:
@@ -530,7 +530,7 @@ class VAADProxyHandler(http.server.SimpleHTTPRequestHandler):
 
             self.send_json_response({
                 "success": False,
-                "error": f"कंप्यूटरीकृत वाद संख्या '{case_no}' vaad.up.nic.in सर्वर पर उपलब्ध नहीं है।"
+                "error": f"कंप्यूटरीकृत वाद संख्या '{case_no}' vaad.up.gov.in सर्वर पर उपलब्ध नहीं है।"
             }, status=404)
             return
 
